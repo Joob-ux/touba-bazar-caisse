@@ -1,7 +1,8 @@
 # Caisse Touba Bazar — fiche pour l'agent
 
 Caisse TPE pour le client **Touba Bazar**, réalisée par Matar Diop (Xelkoom Valley).
-Même principe que la caisse T.B.T.L (`Joob-ux/tbtb-caisse`) : **aucun serveur, aucune base de données**.
+Même principe que la caisse T.B.T.L (`Joob-ux/tbtb-caisse`) : la caisse marche **sans serveur ni internet** ;
+les ventes sont recopiées vers le suivi à distance quand il y a du réseau.
 Les demandes arrivent souvent depuis un téléphone : faire la modification complètement
 (code, test, déploiement, vérification). Répondre en français, court et structuré.
 
@@ -14,6 +15,10 @@ Les demandes arrivent souvent depuis un téléphone : faire la modification comp
   `IPosPrinterService` (AIDL dans `android/app/src/main/aidl`, ordre des méthodes relevé sur le TPE),
   sinon RawBT, sinon Bluetooth « InnerPrinter »)
   et `window.Android.partager` (export CSV).
+
+- **Suivi à distance** (`suivi/`, voir `suivi/CLAUDE.md`) : la caisse envoie chaque vente
+  (`web/suivi-sync.js`) ; le gérant les voit sur ordinateur ou téléphone avec son compte.
+  Seul petit serveur du projet : gratuit, base séparée sur le MySQL de GestPro, comme T.B.T.L.
 
 ## En production
 - https://touba-bazar-caisse.vercel.app — Vercel publie `web/` (`vercel.json`), déploiement

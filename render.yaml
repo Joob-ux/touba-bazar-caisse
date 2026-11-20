@@ -1,0 +1,37 @@
+services:
+  # Suivi à distance de la caisse Touba Bazar (dossier suivi/) - même principe que T.B.T.L :
+  # service gratuit + base séparée toubabazar_db sur le serveur MySQL privé de GestPro (aucun coût en plus)
+  - type: web
+    name: touba-bazar-suivi
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: suivi
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/etat
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: gestpro-mysql
+          property: host
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        value: toubabazar_db
+      - key: DB_USER
+        value: root
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: gestpro-mysql
+          envVarKey: MYSQL_ROOT_PASSWORD
+      - key: ADMIN_EMAIL
+        value: md4980990@gmail.com
+      - key: ALLOWED_ORIGINS
+        value: https://touba-bazar-caisse.vercel.app

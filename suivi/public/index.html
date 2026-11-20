@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f5132">
+<title>Suivi des ventes — Touba Bazar</title>
+<style>
+:root { --vert:#0f5132; --vert2:#198754; --fond:#f2f4f3; --gris:#6c757d; --rouge:#c0392b; --orange:#ff7900; --wave:#1aa3d9; --ligne:#e3e6e4; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--fond); color:#1d2321; font-size:15px; }
+button, input, select { font:inherit; }
+button { cursor:pointer; border:0; border-radius:10px; }
+[hidden] { display:none !important; }
+.num { font-variant-numeric:tabular-nums; }
+header { background:var(--vert); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:5; }
+header h1 { margin:0; font-size:18px; flex:1; }
+header h1 small { display:block; font-weight:400; font-size:12px; opacity:.85; }
+header button { background:rgba(255,255,255,.16); color:#fff; padding:8px 14px; }
+.pastille { background:#ffc107; color:#222; font-weight:700; font-size:12px; padding:4px 9px; border-radius:20px; }
+main { max-width:1180px; margin:0 auto; padding:18px 20px 40px; }
+.carte { background:#fff; border:1px solid var(--ligne); border-radius:14px; padding:16px; margin-bottom:16px; }
+h2 { font-size:16px; margin:0 0 12px; }
+
+/* Connexion */
+#v-login { max-width:400px; margin:60px auto; }
+#v-login label { display:block; font-size:13px; color:var(--gris); margin:12px 0 4px; }
+#v-login input { width:100%; padding:11px; border:1px solid var(--ligne); border-radius:10px; }
+.btn { background:var(--vert); color:#fff; font-weight:700; padding:12px 18px; }
+.btn.plein { width:100%; margin-top:18px; }
+.btn.second { background:var(--fond); color:#111; font-weight:600; }
+.msg { margin:12px 0 0; font-size:14px; padding:10px 12px; border-radius:10px; }
+.msg.err { background:#fde2e0; color:var(--rouge); } .msg.ok { background:#e6f4ec; color:var(--vert); }
+.info { color:var(--gris); font-size:14px; }
+
+/* Barre de période */
+.barre { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:16px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chips button { background:#fff; border:1px solid var(--ligne); padding:8px 14px; border-radius:20px; }
+.chips button[aria-pressed=true] { background:var(--vert); color:#fff; border-color:var(--vert); }
+.dates { display:flex; gap:6px; align-items:center; }
+.dates input { padding:7px 9px; border:1px solid var(--ligne); border-radius:8px; }
+.barre .droite { margin-left:auto; display:flex; gap:8px; }
+
+/* Chiffres */
+.chiffres { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+.chiffre { background:#fff; border:1px solid var(--ligne); border-radius:14px; padding:14px 16px; }
+.chiffre .l { font-size:13px; color:var(--gris); }
+.chiffre .v { font-size:24px; font-weight:800; margin-top:2px; }
+.chiffre .s { font-size:12px; color:var(--gris); margin-top:2px; }
+.chiffre.total { background:var(--vert); color:#fff; border-color:var(--vert); }
+.chiffre.total .l, .chiffre.total .s { color:rgba(255,255,255,.85); } .chiffre.total .v { font-size:32px; }
+.chiffre.cash { border-top:4px solid var(--vert2); } .chiffre.wave { border-top:4px solid var(--wave); } .chiffre.orange { border-top:4px solid var(--orange); }
+
+.colonnes { display:grid; grid-template-columns:380px 1fr; gap:16px; align-items:start; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--ligne); font-size:14px; }
+th { font-size:12px; color:var(--gris); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+td.r, th.r { text-align:right; }
+tr.clic { cursor:pointer; } tr.clic:hover { background:#f6faf8; } tr.sel { background:#eaf5ef; }
+.barrej { height:4px; background:var(--vert2); border-radius:2px; opacity:.55; margin-top:4px; }
+.mp { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:10px; color:#fff; }
+.mp-cash { background:var(--vert2); } .mp-wave { background:var(--wave); } .mp-orange { background:var(--orange); }
+tr.annulee td { color:var(--gris); } tr.annulee .m { text-decoration:line-through; }
+.etat-a { font-size:11px; background:#fde2e0; color:var(--rouge); padding:2px 6px; border-radius:8px; margin-left:4px; }
+.filtres { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+.filtres button { background:var(--fond); padding:6px 12px; border-radius:16px; font-size:13px; }
+.filtres button.on { background:var(--vert); color:#fff; }
+.filtres input { margin-left:auto; padding:7px 10px; border:1px solid var(--ligne); border-radius:8px; min-width:180px; }
+.vide { text-align:center; color:var(--gris); padding:24px; }
+
+/* Compte */
+.ligne-c { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--ligne); }
+.ligne-c .i { flex:1; } .ligne-c .i small { display:block; color:var(--gris); font-size:12px; }
+.ligne-c button { padding:7px 12px; font-size:13px; }
+.form-l { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.form-l input { padding:9px 10px; border:1px solid var(--ligne); border-radius:8px; flex:1; min-width:160px; }
+
+@media (max-width:900px) {
+  .chiffres { grid-template-columns:1fr 1fr; } .chiffre.total { grid-column:1/-1; }
+  .colonnes { grid-template-columns:1fr; }
+  .barre .droite { margin-left:0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Touba Bazar — suivi des ventes<small id="h-info">Caisse TPE</small></h1>
+  <span class="pastille" id="h-attente" hidden></span>
+  <button id="btn-compte" hidden>Compte</button>
+  <button id="btn-out" hidden>Déconnexion</button>
+</header>
+
+<main>
+  <!-- Connexion -->
+  <form class="carte" id="v-login" hidden>
+    <h2 id="l-title">Connexion</h2>
+    <p class="info" id="l-info"></p>
+    <label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username">
+    <label for="l-mdp">Mot de passe</label><input id="l-mdp" type="password" autocomplete="current-password">
+    <div id="l-mdp2-wrap" hidden><label for="l-mdp2">Confirmer le mot de passe</label><input id="l-mdp2" type="password" autocomplete="new-password"></div>
+    <button class="btn plein" id="l-btn" type="submit">Se connecter</button>
+    <p class="msg" id="l-msg" hidden></p>
+  </form>
+
+  <!-- Tableau de bord -->
+  <section id="v-app" hidden>
+    <div class="barre">
+      <div class="chips" id="chips">
+        <button data-p="0" aria-pressed="true">Aujourd'hui</button><button data-p="1">Hier</button>
+        <button data-p="7">7 jours</button><button data-p="30">30 jours</button>
+        <button data-p="mois">Ce mois</button><button data-p="moisp">Mois dernier</button><button data-p="x">Dates…</button>
+      </div>
+      <div class="dates" id="custom" hidden><input type="date" id="d-du"> au <input type="date" id="d-au"></div>
+      <div class="droite"><button class="btn second" id="btn-export">Exporter (Excel)</button><button class="btn second" id="btn-print">Imprimer</button></div>
+    </div>
+    <p class="msg" id="msg" hidden></p>
+
+    <div class="chiffres">
+      <div class="chiffre total"><div class="l">Chiffre d'affaires</div><div class="v num" id="s-total">—</div><div class="s" id="s-info"></div></div>
+      <div class="chiffre cash"><div class="l">Espèces</div><div class="v num" id="s-cash">—</div><div class="s" id="s-cash-n"></div></div>
+      <div class="chiffre wave"><div class="l">Wave</div><div class="v num" id="s-wave">—</div><div class="s" id="s-wave-n"></div></div>
+      <div class="chiffre orange"><div class="l">Orange Money</div><div class="v num" id="s-orange">—</div><div class="s" id="s-orange-n"></div></div>
+    </div>
+
+    <div class="colonnes">
+      <div class="carte">
+        <h2>Jour par jour</h2>
+        <table><thead><tr><th>Jour</th><th class="r">Ventes</th><th class="r">Total</th></tr></thead><tbody id="jours"></tbody></table>
+      </div>
+      <div class="carte">
+        <h2 id="v-titre">Ventes</h2>
+        <div class="filtres" id="filtres">
+          <button data-f="" class="on">Tous</button><button data-f="cash">Espèces</button><button data-f="wave">Wave</button><button data-f="orange">Orange Money</button>
+          <input id="q" type="search" placeholder="Rechercher un libellé ou un N°">
+        </div>
+        <table><thead><tr><th>Date</th><th>N°</th><th>Mode</th><th>Libellé</th><th class="r">Montant</th></tr></thead><tbody id="ventes"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compte -->
+  <section id="v-compte" hidden>
+    <p><button class="btn second" id="btn-retour">← Retour aux ventes</button></p>
+    <div class="carte" id="c-caisses-w">
+      <h2>Caisses</h2>
+      <p class="info">Une caisse doit être autorisée une seule fois pour envoyer ses ventes ici.</p>
+      <div id="c-caisses"></div>
+    </div>
+    <div class="carte" id="c-comptes-w">
+      <h2>Comptes</h2>
+      <p class="info">Ajoutez un compte en lecture seule (par exemple le propriétaire de la boutique).</p>
+      <div id="c-comptes"></div>
+      <div class="form-l"><input id="n-email" type="email" placeholder="Email"><input id="n-mdp" type="text" placeholder="Mot de passe (8 caractères, lettres et chiffre)"><button class="btn" id="n-ok">Ajouter</button></div>
+      <p class="msg" id="n-msg" hidden></p>
+    </div>
+    <div class="carte">
+      <h2>Mon mot de passe</h2>
+      <p class="info" id="c-moi"></p>
+      <div class="form-l"><input id="m-ancien" type="password" placeholder="Mot de passe actuel"><input id="m-nouveau" type="password" placeholder="Nouveau mot de passe"><button class="btn" id="m-ok">Changer</button></div>
+      <p class="msg" id="m-msg" hidden></p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'toubabazar_suivi_jeton';
+const MODES = { cash: 'Espèces', wave: 'Wave', orange: 'Orange Money' };
+const fmt = n => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+/* Heure de Dakar = UTC */
+const iso = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+const frJour = s => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const frCourt = s => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC' });
+const frDate = s => { const d = new Date(s); return d.toLocaleDateString('fr-FR', { timeZone: 'UTC' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }); };
+const badge = m => `<span class="mp mp-${esc(m)}">${esc(MODES[m] || m)}</span>`;
+let jeton = null; try { jeton = localStorage.getItem(KEY); } catch (e) {}
+let moi = { email: '', role: '' };
+const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = t; el.hidden = false; };
+
+async function api(path, opts = {}) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 70000);
+  try {
+    const r = await fetch(path, { method: opts.body ? 'POST' : 'GET', signal: ctl.signal,
+      headers: Object.assign({ 'Content-Type': 'application/json' }, jeton ? { Authorization: 'Bearer ' + jeton } : {}),
+      body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401 && path !== '/api/login') logout(true);
+    if (!r.ok) throw new Error(d.erreur || 'Erreur ' + r.status);
+    return d;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Le serveur ne répond pas. Vérifiez internet et réessayez.');
+    if (e instanceof TypeError) throw new Error('Pas de connexion internet.');
+    throw e;
+  } finally { clearTimeout(tm); }
+}
+
+/* ---------- Connexion ---------- */
+let setupMode = false;
+async function showLogin() {
+  ['v-app', 'v-compte', 'btn-out', 'btn-compte', 'h-attente'].forEach(id => $(id).hidden = true);
+  $('v-login').hidden = false;
+  $('l-info').textContent = 'Connexion au serveur… (le premier chargement peut prendre jusqu\'à une minute)';
+  try {
+    const e = await api('/api/etat');
+    setupMode = !e.configure;
+    $('l-title').textContent = setupMode ? 'Créer votre mot de passe' : 'Connexion';
+    $('l-info').textContent = setupMode ? 'Première connexion : entrez l\'email du gérant et choisissez un mot de passe (8 caractères minimum, avec des lettres et un chiffre).' : 'Entrez votre email et votre mot de passe.';
+    $('l-mdp2-wrap').hidden = !setupMode;
+    $('l-mdp').autocomplete = setupMode ? 'new-password' : 'current-password';
+    $('l-btn').textContent = setupMode ? 'Créer et se connecter' : 'Se connecter';
+  } catch (err) { $('l-info').textContent = err.message; }
+}
+$('v-login').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('l-msg'); m.hidden = true;
+  const email = $('l-email').value.trim(), mdp = $('l-mdp').value;
+  if (!email || !mdp) return say(m, 'Entrez l\'email et le mot de passe.');
+  if (setupMode && mdp !== $('l-mdp2').value) return say(m, 'Les deux mots de passe ne sont pas identiques.');
+  $('l-btn').disabled = true;
+  try {
+    const d = await api(setupMode ? '/api/setup' : '/api/login', { body: { email, mdp, appareil: 'page de suivi' } });
+    jeton = d.jeton; try { localStorage.setItem(KEY, jeton); } catch (err) {}
+    moi = { email: d.email, role: d.role || '' };
+    $('l-mdp').value = ''; $('l-mdp2').value = '';
+    showApp();
+  } catch (err) { say(m, err.message); }
+  finally { $('l-btn').disabled = false; }
+});
+function logout(expired) {
+  if (!expired && jeton) api('/api/logout', { body: {} }).catch(() => {});
+  jeton = null; moi = { email: '', role: '' }; try { localStorage.removeItem(KEY); } catch (e) {}
+  clearInterval(timer); showLogin();
+}
+$('btn-out').onclick = () => logout(false);
+
+/* ---------- Tableau de bord ---------- */
+let per = '0', filtre = '', jourSel = null, timer = null, version = null, ventes = [], resume = null;
+function periode() {
+  const t = new Date();
+  if (per === 'x') { const du = $('d-du').value || iso(t); return { du, au: $('d-au').value || du }; }
+  const a = t.getUTCFullYear(), m = t.getUTCMonth();
+  if (per === 'mois') return { du: iso(new Date(Date.UTC(a, m, 1))), au: iso(t) };
+  if (per === 'moisp') return { du: iso(new Date(Date.UTC(a, m - 1, 1))), au: iso(new Date(Date.UTC(a, m, 0))) };
+  const n = +per;
+  if (n === 1) { const y = new Date(t.getTime() - 864e5); return { du: iso(y), au: iso(y) }; }
+  return { du: iso(new Date(t.getTime() - (n ? n - 1 : 0) * 864e5)), au: iso(t) };
+}
+$('chips').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  per = b.dataset.p; jourSel = null;
+  document.querySelectorAll('#chips button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('custom').hidden = per !== 'x';
+  if (per === 'x' && !$('d-du').value) { $('d-du').value = iso(new Date()); $('d-au').value = iso(new Date()); }
+  load();
+};
+$('d-du').onchange = $('d-au').onchange = () => { jourSel = null; load(); };
+$('filtres').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filtre = b.dataset.f;
+  document.querySelectorAll('#filtres button').forEach(x => x.classList.toggle('on', x === b));
+  rendreVentes();
+};
+$('q').oninput = () => rendreVentes();
+$('jours').onclick = e => {
+  const tr = e.target.closest('tr[data-j]'); if (!tr) return;
+  jourSel = jourSel === tr.dataset.j ? null : tr.dataset.j; rendreJours(); rendreVentes();
+};
+
+let seq = 0;
+async function load() {
+  const my = ++seq, p = periode();
+  $('msg').hidden = true;
+  try {
+    const [r, l] = await Promise.all([api(`/api/resume?du=${p.du}&au=${p.au}`), api(`/api/ventes?du=${p.du}&au=${p.au}`)]);
+    if (my !== seq) return;
+    resume = r; ventes = l.ventes;
+    const tot = { nb: 0, total: 0, parMode: {} };
+    r.jours.forEach(j => { tot.nb += j.nb; tot.total += j.total; for (const [m, x] of Object.entries(j.parMode)) { tot.parMode[m] = tot.parMode[m] || { nb: 0, total: 0 }; tot.parMode[m].nb += x.nb; tot.parMode[m].total += x.total; } });
+    $('s-total').textContent = fmt(tot.total) + ' F CFA';
+    $('s-info').textContent = `${tot.nb} vente${tot.nb > 1 ? 's' : ''}` + (r.annulees ? ` · ${r.annulees} annulée${r.annulees > 1 ? 's' : ''}` : '') + ' · ' + (p.du === p.au ? frCourt(p.du) : `du ${frCourt(p.du)} au ${frCourt(p.au)}`);
+    for (const m of ['cash', 'wave', 'orange']) {
+      const x = tot.parMode[m] || { nb: 0, total: 0 };
+      $('s-' + m).textContent = fmt(x.total) + ' F';
+      $('s-' + m + '-n').textContent = `${x.nb} vente${x.nb > 1 ? 's' : ''}` + (tot.total ? ` · ${Math.round(x.total / tot.total * 100)} %` : '');
+    }
+    $('h-info').textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+      + (r.dernier ? ' · dernier envoi de la caisse : ' + frDate(r.dernier) : ' · aucune vente reçue pour l\'instant');
+    if (jourSel && !r.jours.some(j => j.jour === jourSel)) jourSel = null;
+    rendreJours(); rendreVentes();
+  } catch (err) { if (my === seq) say($('msg'), err.message); }
+}
+function rendreJours() {
+  const js = resume ? resume.jours : [];
+  const max = Math.max(1, ...js.map(j => j.total));
+  $('jours').innerHTML = js.length ? js.map(j => `<tr class="clic ${j.jour === jourSel ? 'sel' : ''}" data-j="${j.jour}"><td>${frJour(j.jour)}<div class="barrej" style="width:${Math.max(3, j.total / max * 100)}%"></div></td>
+      <td class="r num">${j.nb}</td><td class="r num"><b>${fmt(j.total)} F</b></td></tr>`).join('')
+    : '<tr><td colspan="3" class="vide">Aucune vente sur cette période</td></tr>';
+}
+function rendreVentes() {
+  const q = $('q').value.trim().toLowerCase();
+  const l = ventes.filter(v => (!filtre || v.mode === filtre) && (!jourSel || v.date.slice(0, 10) === jourSel)
+    && (!q || String(v.libelle || '').toLowerCase().includes(q) || String(v.num).padStart(6, '0').includes(q)));
+  const tot = l.filter(v => !v.annulee).reduce((s, v) => s + v.montant, 0);
+  $('v-titre').textContent = (jourSel ? 'Ventes du ' + frJour(jourSel) : 'Ventes') + ` — ${l.length} · ${fmt(tot)} F`;
+  $('ventes').innerHTML = l.length ? l.map(v => `<tr class="${v.annulee ? 'annulee' : ''}"><td>${frDate(v.date)}</td><td class="num">${String(v.num).padStart(6, '0')}</td>
+      <td>${badge(v.mode)}</td><td>${esc(v.libelle || '')}${v.annulee ? `<span class="etat-a" title="Annulée le ${frDate(v.annulee)}">Annulée</span>` : ''}</td>
+      <td class="r num m"><b>${fmt(v.montant)} F</b></td></tr>`).join('')
+    : '<tr><td colspan="5" class="vide">Aucune vente</td></tr>';
+}
+
+/* Mise à jour automatique : la liste est rechargée dès qu'une vente arrive */
+async function tick() {
+  try {
+    const v = await api('/api/version');
+    const h = $('h-attente');
+    h.hidden = !v.attente; h.textContent = v.attente ? `${v.attente} caisse${v.attente > 1 ? 's' : ''} à autoriser` : '';
+    if (version !== null && v.v !== version && !$('v-app').hidden) load();
+    version = v.v;
+  } catch (e) {}
+}
+$('h-attente').onclick = () => $('btn-compte').click();
+
+$('btn-export').onclick = () => {
+  const p = periode();
+  const lignes = [['Date', 'Heure', 'N°', 'Mode de paiement', 'Libellé', 'Montant (F CFA)', 'Statut', 'Caisse']];
+  for (const v of ventes.slice().reverse()) {
+    const d = new Date(v.date);
+    lignes.push([frCourt(v.date.slice(0, 10)), d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }), String(v.num).padStart(6, '0'),
+      MODES[v.mode] || v.mode, v.libelle || '', v.montant, v.annulee ? 'Annulée' : 'Validée', v.appareil]);
+  }
+  const csv = '﻿' + lignes.map(l => l.map(c => /[;"\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `ventes-touba-bazar-${p.du}${p.au !== p.du ? '-au-' + p.au : ''}.csv`; a.click();
+};
+$('btn-print').onclick = () => window.print();
+
+/* ---------- Compte ---------- */
+$('btn-compte').onclick = () => { $('v-app').hidden = true; $('v-compte').hidden = false; chargerCompte(); };
+$('btn-retour').onclick = () => { $('v-compte').hidden = true; $('v-app').hidden = false; load(); };
+async function chargerCompte() {
+  $('c-moi').textContent = `Connecté : ${moi.email}` + (moi.role === 'gerant' ? ' (gérant)' : ' (lecture seule)');
+  const g = moi.role === 'gerant';
+  $('c-caisses-w').hidden = $('c-comptes-w').hidden = !g;
+  if (!g) return;
+  try {
+    const [c, u] = await Promise.all([api('/api/caisses'), api('/api/comptes')]);
+    const ST = { attente: 'En attente d\'autorisation', autorisee: 'Autorisée', refusee: 'Retirée' };
+    $('c-caisses').innerHTML = c.caisses.length ? c.caisses.map(x => `<div class="ligne-c"><div class="i"><b>${esc(x.nom || x.appareil)}</b>
+        <small>${ST[x.statut] || x.statut} · ${x.nb} vente${x.nb > 1 ? 's' : ''} reçue${x.nb > 1 ? 's' : ''}${x.vu_le ? ' · vue le ' + esc(x.vu_le) : ''}</small></div>
+        ${x.statut !== 'autorisee' ? `<button class="btn" data-a="autoriser" data-c="${esc(x.appareil)}">Autoriser</button>` : `<button class="btn second" data-a="retirer" data-c="${esc(x.appareil)}">Retirer</button>`}</div>`).join('')
+      : '<p class="info">Aucune caisse pour l\'instant : ouvrez la caisse sur le TPE avec internet, elle apparaîtra ici.</p>';
+    $('c-comptes').innerHTML = u.comptes.map(x => `<div class="ligne-c"><div class="i"><b>${esc(x.email)}</b><small>${x.role === 'gerant' ? 'Gérant' : 'Lecture seule'}${x.moi ? ' · vous' : ''}</small></div>
+        ${x.moi ? '' : `<button class="btn second" data-s="${x.id}">Supprimer</button>`}</div>`).join('');
+  } catch (e) { $('c-caisses').innerHTML = `<p class="msg err">${esc(e.message)}</p>`; }
+}
+$('c-caisses').onclick = async e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  if (b.dataset.a === 'retirer' && !confirm('Retirer cette caisse ? Elle n\'enverra plus ses ventes.')) return;
+  try { await api('/api/caisses/' + b.dataset.a, { body: { appareil: b.dataset.c } }); chargerCompte(); tick(); } catch (err) { alert(err.message); }
+};
+$('c-comptes').onclick = async e => {
+  const b = e.target.closest('button[data-s]'); if (!b) return;
+  if (!confirm('Supprimer ce compte ?')) return;
+  try { await api('/api/comptes/supprimer', { body: { id: +b.dataset.s } }); chargerCompte(); } catch (err) { alert(err.message); }
+};
+$('n-ok').onclick = async () => {
+  try { await api('/api/comptes', { body: { email: $('n-email').value.trim(), mdp: $('n-mdp').value } }); $('n-email').value = $('n-mdp').value = ''; say($('n-msg'), 'Compte ajouté.', true); chargerCompte(); }
+  catch (err) { say($('n-msg'), err.message); }
+};
+$('m-ok').onclick = async () => {
+  try { await api('/api/mdp', { body: { ancien: $('m-ancien').value, nouveau: $('m-nouveau').value } }); $('m-ancien').value = $('m-nouveau').value = ''; say($('m-msg'), 'Mot de passe changé.', true); }
+  catch (err) { say($('m-msg'), err.message); }
+};
+
+async function showApp() {
+  $('v-login').hidden = true; $('v-compte').hidden = true; $('v-app').hidden = false;
+  $('btn-out').hidden = false; $('btn-compte').hidden = false;
+  try { moi = await api('/api/moi'); } catch (e) {}
+  load(); tick();
+  clearInterval(timer); timer = setInterval(tick, 10000);
+}
+if (jeton) showApp(); else showLogin();
+</script>
+</body>
+</html>

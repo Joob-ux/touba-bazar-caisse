@@ -128,6 +128,7 @@
       localStorage.setItem(K.seq, String(n));
       saisie = ''; $('note').value = ''; majMontant(); majCA(); fermer('v-rendu');
       toast(`${fmt(montant)} F encaissés`, 'ok');
+      if (window.TB_SUIVI) window.TB_SUIVI.push();
       imprimerVente(v, false);
     } finally { occupe = false; }
   }
@@ -246,6 +247,7 @@
     majAdminUI();
     $('m-print').value = prefs.print;
     const taille = (localStorage.getItem(K.ventes) || '').length;
+    $('m-suivi').textContent = window.TB_SUIVI ? window.TB_SUIVI.etat() : '';
     $('m-info').textContent = `${ventes.length} ventes enregistrées sur ce TPE · mémoire utilisée ${Math.round(taille / 1024)} Ko sur ~5 000 Ko`;
     ouvrir('v-menu');
   };
@@ -367,6 +369,7 @@
       v.a = new Date().toISOString(); save(K.ventes, ventes);
       rendreJour(); majCA(); if (histo) chargerHisto(histo.du, histo.au);
       toast('Vente annulée', 'ok');
+      if (window.TB_SUIVI) window.TB_SUIVI.push();
     }
   };
   $('j-print').onclick = async () => {

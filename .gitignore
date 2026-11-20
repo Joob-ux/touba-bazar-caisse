@@ -4,3 +4,4 @@ android/app/build/
 local.properties
 *.iml
 .idea/
+suivi/node_modules/
