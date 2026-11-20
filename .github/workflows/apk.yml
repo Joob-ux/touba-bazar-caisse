@@ -1,0 +1,33 @@
+# Compile l'appli Android « Caisse Touba Bazar » (dossier android/) et publie l'APK.
+name: APK Caisse Touba Bazar
+on:
+  push:
+    paths: ['android/**', '.github/workflows/apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.7' }
+      - name: Compiler l'APK
+        working-directory: android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          gradle --no-daemon assembleRelease
+      - name: Renommer
+        run: cp android/app/build/outputs/apk/release/app-release.apk Caisse-Touba-Bazar.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: Caisse-Touba-Bazar, path: Caisse-Touba-Bazar.apk }
+      - name: Publier (release « apk »)
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release delete apk --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk Caisse-Touba-Bazar.apk --target "$GITHUB_SHA" \
+            --title "Caisse Touba Bazar (APK)" --notes "Appli Android du TPE. Installer RawBT depuis le Play Store, puis cette appli."

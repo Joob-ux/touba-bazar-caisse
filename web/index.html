@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f5132">
+<title>Caisse Touba Bazar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root { --vert:#0f5132; --vert2:#198754; --fond:#f2f4f3; --gris:#6c757d; --rouge:#c0392b; --orange:#ff7900; --bleu:#1dc4ff; --carte:#fff; --ligne:#e3e6e4; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { margin:0; height:100%; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--fond); color:#1d2321; font-size:16px; }
+button { font:inherit; cursor:pointer; border:0; border-radius:10px; }
+input, select { font:inherit; }
+[hidden] { display:none !important; }
+.num { font-variant-numeric:tabular-nums; }
+
+/* Connexion */
+#login { min-height:100%; display:flex; align-items:center; justify-content:center; padding:20px; }
+#login form { background:#fff; border-radius:16px; padding:22px; width:100%; max-width:380px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
+#login h1 { margin:0 0 4px; font-size:22px; color:var(--vert); }
+#login p { margin:0 0 18px; color:var(--gris); font-size:14px; }
+#login label { display:block; font-size:13px; color:var(--gris); margin:10px 0 4px; }
+#login input { width:100%; padding:12px; border:1px solid var(--ligne); border-radius:10px; }
+#login button { width:100%; margin-top:18px; padding:14px; background:var(--vert); color:#fff; font-weight:700; font-size:17px; }
+
+/* Caisse */
+#app { display:flex; flex-direction:column; height:100%; }
+header { background:var(--vert); color:#fff; padding:8px 10px; display:flex; align-items:center; gap:8px; }
+header .titre { flex:1; min-width:0; }
+header .shop { font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille { font-size:12px; padding:4px 8px; border-radius:20px; background:rgba(255,255,255,.18); white-space:nowrap; }
+.pastille.off { background:#f0ad4e; color:#222; }
+.pastille.att { background:#ffc107; color:#222; }
+#btn-menu { background:rgba(255,255,255,.15); color:#fff; width:40px; height:36px; font-size:20px; }
+
+/* Panneaux */
+.voile { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
+.panneau { background:#fff; width:100%; max-width:560px; max-height:92%; border-radius:18px 18px 0 0; display:flex; flex-direction:column; }
+.panneau .tete { display:flex; align-items:center; padding:12px 14px; border-bottom:1px solid var(--ligne); gap:8px; }
+.panneau .tete h2 { flex:1; margin:0; font-size:18px; }
+.panneau .tete button { background:var(--fond); width:36px; height:36px; font-size:18px; }
+.panneau .corps { overflow-y:auto; padding:10px 14px; flex:1; }
+.panneau .pied { padding:10px 14px 14px; border-top:1px solid var(--ligne); }
+
+.modes { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.modes button { padding:14px 4px; color:#fff; font-weight:700; font-size:15px; }
+.m-cash { background:var(--vert2); } .m-wave { background:#1aa3d9; } .m-orange { background:var(--orange); }
+
+#rendu .gros { font-size:30px; font-weight:800; text-align:center; margin:4px 0 10px; }
+#rendu input { width:100%; padding:14px; font-size:24px; text-align:center; border:2px solid var(--ligne); border-radius:12px; }
+.rapides { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:10px 0; }
+.rapides button { background:var(--fond); padding:12px 2px; font-weight:600; font-size:14px; }
+.monnaie { text-align:center; font-size:18px; margin:6px 0 12px; }
+.monnaie b { font-size:26px; color:var(--vert); }
+.monnaie.manque b { color:var(--rouge); }
+.btn-plein { width:100%; padding:15px; background:var(--vert); color:#fff; font-size:18px; font-weight:700; }
+.btn-plein:disabled { background:#a5b3ac; }
+.btn-second { width:100%; padding:13px; background:var(--fond); font-weight:600; margin-top:8px; }
+
+.menu button { display:block; width:100%; text-align:left; padding:14px; background:#fff; border-bottom:1px solid var(--ligne); border-radius:0; font-size:16px; }
+.menu button small { display:block; color:var(--gris); font-size:12px; }
+.menu label { display:block; padding:12px 14px; font-size:14px; color:var(--gris); }
+.menu select { width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid var(--ligne); font-size:16px; color:#111; }
+
+.vente { padding:10px 0; border-bottom:1px solid var(--ligne); display:flex; gap:8px; align-items:center; }
+.vente .info { flex:1; min-width:0; font-size:14px; }
+.vente .info small { display:block; color:var(--gris); }
+.vente button { background:var(--fond); padding:8px 10px; font-size:13px; }
+.etat { font-size:11px; padding:2px 6px; border-radius:8px; background:#e8f5ee; color:var(--vert); }
+.etat.att { background:#fff3cd; color:#7a5b00; }
+.etat.err { background:#fde2e0; color:var(--rouge); }
+
+.bilan td { padding:6px 0; } .bilan td:last-child { text-align:right; font-weight:700; }
+.bilan { width:100%; border-collapse:collapse; font-size:15px; }
+.bilan tr.tot td { border-top:2px solid #111; font-size:18px; }
+
+#toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 16px; border-radius:10px; z-index:50; font-size:14px; max-width:92%; text-align:center; }
+#toast.err { background:var(--rouge); } #toast.ok { background:var(--vert2); }
+
+
+/* Caisse simple : CA du jour + pavé numérique */
+.ca { background:#fff; margin:10px; border-radius:14px; padding:12px 14px; border:1px solid var(--ligne); text-align:center; }
+.ca-lib { font-size:13px; color:var(--gris); }
+.ca-total { font-size:32px; font-weight:800; color:var(--vert); line-height:1.2; }
+.ca-modes { font-size:12px; color:var(--gris); }
+.saisie { margin:0 10px; }
+.montant { font-size:40px; font-weight:800; text-align:right; padding:6px 4px; overflow:hidden; white-space:nowrap; }
+#note { width:100%; padding:9px 12px; border:1px solid var(--ligne); border-radius:10px; background:#fff; }
+.pave { flex:1; display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; padding:10px; min-height:0; }
+.pave button { background:#fff; border:1px solid var(--ligne); font-size:26px; font-weight:600; min-height:48px; }
+.pave button:active { background:#e6efe9; }
+.pave button[data-k=del] { background:var(--fond); }
+.modes.bas { padding:0 10px 12px; }
+.modes.bas button { padding:18px 4px; font-size:16px; }
+.modes button:disabled { opacity:.45; }
+
+
+/* Badges mode de paiement */
+.mp { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:10px; color:#fff; vertical-align:middle; }
+.mp-cash { background:var(--vert2); } .mp-wave { background:#1aa3d9; } .mp-orange { background:var(--orange); } .mp-autre { background:var(--gris); }
+.chips button .n { opacity:.75; font-weight:400; }
+/* Formulaire boutique */
+.form label { display:block; font-size:13px; color:var(--gris); margin:0 0 12px; }
+.form input { display:block; width:100%; margin-top:4px; padding:11px; border:1px solid var(--ligne); border-radius:10px; font-size:16px; color:#111; }
+#b-logo-apercu img { max-width:160px; max-height:90px; display:block; margin:4px 0 8px; }
+.vente .annulee { text-decoration:line-through; color:var(--gris); }
+/* Historique */
+#v-histo .panneau, #v-jour .panneau { height:92%; }
+.chips { display:flex; gap:6px; overflow-x:auto; margin-bottom:8px; }
+.chips button { background:var(--fond); padding:8px 12px; border-radius:20px; white-space:nowrap; font-size:14px; }
+.chips button.on { background:var(--vert); color:#fff; }
+.dates { display:flex; gap:6px; align-items:center; margin-bottom:10px; font-size:14px; color:var(--gris); }
+.dates input { flex:1; min-width:0; padding:8px; border:1px solid var(--ligne); border-radius:8px; font-size:14px; }
+.dates button { background:var(--vert); color:#fff; padding:8px 12px; }
+.h-total { background:#eef6f1; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.h-total .t { font-size:26px; font-weight:800; color:var(--vert); }
+.h-total .d { font-size:12px; color:var(--gris); }
+.jour { display:flex; align-items:center; gap:8px; width:100%; background:#fff; border-bottom:1px solid var(--ligne); border-radius:0; padding:10px 2px; text-align:left; }
+.jour .info { flex:1; min-width:0; } .jour .info small { display:block; color:var(--gris); font-size:12px; }
+.jour .m { font-weight:800; font-size:16px; } .jour .fl { color:var(--gris); font-size:20px; }
+.barre-j { height:4px; background:var(--vert2); border-radius:2px; margin-top:4px; opacity:.6; }
+
+/* Impression navigateur (hors TPE) */
+#print-area { display:none; }
+@media print {
+  @page { size:58mm auto; margin:0; }
+  body * { visibility:hidden; }
+  #print-area, #print-area * { visibility:visible; }
+  #print-area { display:block; position:absolute; left:0; top:0; width:58mm; }
+  #print-area img { width:100%; }
+}
+</style>
+</head>
+<body>
+
+<section id="app" hidden>
+  <header>
+    <div class="titre"><div class="shop" id="h-shop">Caisse</div><div class="sous" id="h-user"></div></div>
+        <button id="btn-menu" aria-label="Menu">☰</button>
+  </header>
+  <div class="ca" id="ca">
+    <div class="ca-lib">Chiffre d'affaires du jour</div>
+    <div class="ca-total num" id="ca-total">0 F</div>
+    <div class="ca-modes num" id="ca-modes"></div>
+  </div>
+  <div class="saisie">
+    <div class="montant num" id="montant">0 F</div>
+    <input id="note" type="text" maxlength="200" placeholder="Libellé (facultatif)" autocomplete="off">
+  </div>
+  <div class="pave" id="pave">
+    <button>1</button><button>2</button><button>3</button>
+    <button>4</button><button>5</button><button>6</button>
+    <button>7</button><button>8</button><button>9</button>
+    <button>000</button><button>0</button><button data-k="del">⌫</button>
+  </div>
+  <div class="modes bas">
+    <button class="m-cash" data-mode="cash">Espèces</button>
+    <button class="m-wave" data-mode="wave">Wave</button>
+    <button class="m-orange" data-mode="orange">Orange Money</button>
+  </div>
+</section>
+
+<!-- Paiement en espèces -->
+<div class="voile" id="v-rendu" hidden><div class="panneau" id="rendu">
+  <div class="tete"><h2>Paiement en espèces</h2><button data-close="v-rendu">✕</button></div>
+  <div class="corps">
+    <div class="gros num" id="r-total"></div>
+    <input id="r-recu" type="number" inputmode="numeric" placeholder="Montant reçu">
+    <div class="rapides" id="r-rapides"></div>
+    <div class="monnaie" id="r-monnaie">Monnaie à rendre : <b class="num">0 F</b></div>
+    <button class="btn-plein" id="r-ok">Valider et imprimer</button>
+  </div>
+</div></div>
+
+<!-- Menu -->
+<div class="voile" id="v-menu" hidden><div class="panneau">
+  <div class="tete"><h2>Menu</h2><button data-close="v-menu">✕</button></div>
+  <div class="corps menu" style="padding:0">
+    <button id="m-histo">Historique<small>Chiffre d'affaires jour par jour, détail des ventes</small></button>
+    <button id="m-cloture">Clôture de caisse<small>Totaux du jour par mode de paiement, ticket récapitulatif</small></button>
+    <button id="m-export">Exporter les ventes<small>Fichier Excel (CSV) à envoyer par WhatsApp ou e-mail</small></button>
+    <button id="m-boutique">Infos de la boutique<small>Nom, adresse, téléphones, logo du ticket</small></button>
+    <button id="m-test">Imprimer un ticket test</button>
+    <label>Impression
+      <select id="m-print">
+        <option value="auto">Automatique</option>
+        <option value="rawbt">RawBT</option>
+        <option value="navigateur">Imprimante du navigateur</option>
+        <option value="aucun">Ne pas imprimer</option>
+      </select>
+    </label>
+    <label style="font-size:12px" id="m-info"></label>
+  </div>
+</div></div>
+
+<!-- Historique -->
+<div class="voile" id="v-histo" hidden><div class="panneau">
+  <div class="tete"><h2>Historique</h2><button data-close="v-histo">✕</button></div>
+  <div class="corps">
+    <div class="chips" id="h-periodes">
+      <button data-p="7">7 jours</button><button data-p="30" class="on">30 jours</button><button data-p="mois">Ce mois</button><button data-p="moisp">Mois dernier</button>
+    </div>
+    <div class="dates"><input type="date" id="h-du"><span>au</span><input type="date" id="h-au"><button id="h-ok">OK</button></div>
+    <div id="h-resultat"></div>
+  </div>
+</div></div>
+
+<!-- Détail d'un jour -->
+<div class="voile" id="v-jour" hidden><div class="panneau">
+  <div class="tete"><button data-close="v-jour" aria-label="Retour">‹</button><h2 id="j-titre">Jour</h2><button id="j-print" aria-label="Imprimer" style="width:auto;padding:0 10px;font-size:14px">Imprimer</button></div>
+  <div class="corps"><div class="chips" id="j-filtres"></div><div id="j-liste"></div></div>
+</div></div>
+
+<!-- Infos boutique -->
+<div class="voile" id="v-boutique" hidden><div class="panneau">
+  <div class="tete"><h2>Infos de la boutique</h2><button data-close="v-boutique">✕</button></div>
+  <div class="corps form">
+    <label>Nom de la boutique<input id="b-nom" maxlength="60"></label>
+    <label>Activité / slogan<input id="b-act" maxlength="80"></label>
+    <label>Adresse<input id="b-adr" maxlength="100"></label>
+    <label>Téléphone(s)<input id="b-tel" maxlength="60"></label>
+    <label>Message en bas du ticket<input id="b-pied" maxlength="120"></label>
+    <label>Logo (facultatif)<input id="b-logo" type="file" accept="image/*"></label>
+    <div id="b-logo-apercu"></div>
+  </div>
+  <div class="pied"><button class="btn-plein" id="b-ok">Enregistrer</button></div>
+</div></div>
+
+<!-- Clôture -->
+<div class="voile" id="v-cloture" hidden><div class="panneau">
+  <div class="tete"><h2>Clôture de caisse</h2><button data-close="v-cloture">✕</button></div>
+  <div class="corps" id="cloture-corps"></div>
+  <div class="pied"><button class="btn-plein" id="c-print">Imprimer la clôture</button></div>
+</div></div>
+
+<div id="toast" hidden></div>
+<div id="print-area"></div>
+
+<script src="ticket.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
