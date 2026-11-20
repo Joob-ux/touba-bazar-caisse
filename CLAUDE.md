@@ -13,7 +13,9 @@ Les demandes arrivent souvent depuis un téléphone : faire la modification comp
 - **TPE Q3Pro** : l'appli Android (`android/`) ouvre la page Vercel en plein écran et donne
   `window.Android.printRaw` (ticket image ESC/POS → imprimante intégrée du Q3Pro via le service
   `IPosPrinterService` (AIDL dans `android/app/src/main/aidl`, ordre des méthodes relevé sur le TPE),
-  sinon RawBT, sinon Bluetooth « InnerPrinter »)
+  sinon RawBT, sinon Bluetooth « InnerPrinter »). **Le service IPosPrinter (printRawData) imprime les
+  octets bruts comme des points (48 octets = 1 ligne)** : sur le TPE, envoyer l'image seule
+  (variante 4 de `web/ticket.js`), jamais de commandes ESC/POS, sinon le ticket est décalé.
   et `window.Android.partager` (export CSV).
 
 - **Suivi à distance** (`suivi/`, voir `suivi/CLAUDE.md`) : la caisse envoie chaque vente

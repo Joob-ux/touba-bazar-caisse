@@ -177,12 +177,15 @@
   }
 
   /* Canvas → ESC/POS raster (GS v 0) par bandes de 128 lignes, en base64. */
-  /* Canvas → commandes ESC/POS en base64. Plusieurs façons d'envoyer l'image, car le service
-     d'impression des TPE Q3Pro décale les lignes avec la commande standard (GS v 0) :
-     0 standard · 1 zone d'impression fixée à 58 mm (GS W) · 2 mode image ESC * · 3 lignes pré-décalées.
-     Le réglage choisi (ticket de réglage) est gardé dans localStorage « tb_impression_v1 ». */
-  const VARIANTE_DEFAUT = 1;
-  const variante = () => { const v = Number(localStorage.getItem('tb_impression_v1')); return [0, 1, 2, 3].includes(v) && localStorage.getItem('tb_impression_v1') !== null ? v : VARIANTE_DEFAUT; };
+  /* Canvas → octets pour l'imprimante, en base64.
+     Q3Pro (service IPosPrinter, printRawData) : le service NE LIT PAS les commandes ESC/POS, il imprime
+     tous les octets reçus comme des points (48 octets = 1 ligne de 384 points). Relevé le 20/11/2026 avec
+     le ticket de réglage : chaque octet de commande en tête décalait l'image de 8 points vers la droite.
+     → Variante 4 « image seule » : uniquement les lignes, sans aucune commande (défaut sur le TPE).
+     Variantes 0 à 3 (ESC/POS) : pour RawBT ou une imprimante classique.
+     Le réglage choisi est gardé dans localStorage « tb_impression_v2 ». */
+  const VARIANTE_DEFAUT = 4;
+  const variante = () => { const r = localStorage.getItem('tb_impression_v2'), v = Number(r); return r !== null && [0, 1, 2, 3, 4].includes(v) ? v : VARIANTE_DEFAUT; };
   function lignes(cv) {
     const w = cv.width, h = cv.height, bpr = w >> 3;
     const d = cv.getContext('2d').getImageData(0, 0, w, h).data;
@@ -191,6 +194,15 @@
   }
   function octets(cv, v) {
     const { w, h, bpr, noir } = lignes(cv);
+    if (v === 4) {   // image seule : lignes de points, puis quelques lignes blanches pour sortir le papier
+      const bytes = [];
+      for (let y = 0; y < h; y++) for (let i = 0; i < bpr; i++) {
+        let b = 0; for (let k = 0; k < 8; k++) if (noir(i * 8 + k, y)) b |= 0x80 >> k;
+        bytes.push(b);
+      }
+      for (let i = 0; i < bpr * 24; i++) bytes.push(0);
+      return bytes;
+    }
     const bytes = [0x1B, 0x40];
     if (v === 1) bytes.push(0x1D, 0x4C, 0x00, 0x00, 0x1D, 0x57, w & 255, w >> 8);   // marge gauche 0, largeur 384 points
     bytes.push(0x1B, 0x61, 0x00);
@@ -236,11 +248,8 @@
     x.fillRect(0, 104, W, 3);
     return c;
   }
-  function reglage() {
-    const tout = [];
-    for (const v of [0, 1, 2, 3]) { const o = octets(regleCanvas(v), v); tout.push(...o); }
-    return b64(tout);
-  }
+  /* Ticket de réglage : la variante 4 (image seule) puis la variante 0, chacune envoyée à part. */
+  function reglage() { return [4, 0].map(v => b64(octets(regleCanvas(v), v))); }
 
   const isAndroid = /Android/i.test(navigator.userAgent);
   const hasBridge = () => !!(window.Android && typeof window.Android.printRaw === 'function');
@@ -248,10 +257,10 @@
   /* Imprime un canvas selon le mode choisi. Renvoie le moyen utilisé. */
   async function imprimer(cv, mode) {
     if (mode === 'aucun') return 'aucun';
-    if ((mode === 'auto' || mode === 'rawbt') && hasBridge()) { window.Android.printRaw('base64,' + escpos(cv)); return 'pont'; }
+    if ((mode === 'auto' || mode === 'rawbt') && hasBridge()) { window.Android.printRaw('base64,' + escpos(cv)); return 'pont'; }   // TPE : variante réglée (4 par défaut)
     if (mode === 'rawbt' || (mode === 'auto' && isAndroid)) {
       // RawBT installé sur le TPE : Chrome lui passe le ticket directement
-      window.location.href = 'intent:base64,' + escpos(cv) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+      window.location.href = 'intent:base64,' + escpos(cv, 0) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
       return 'rawbt';
     }
     const zone = document.getElementById('print-area');
@@ -264,7 +273,8 @@
 
   function imprimerReglage() {
     if (!hasBridge()) return false;
-    window.Android.printRaw('base64,' + reglage()); return true;
+    for (const r of reglage()) window.Android.printRaw('base64,' + r);
+    return true;
   }
   window.TPE_TICKET = { venteCanvas, clotureCanvas, testCanvas, imprimer, escpos, imprimerReglage, variante, fmt, MODES };
 })();

@@ -247,7 +247,7 @@
   };
   $('m-variante').onchange = () => {
     if (!estAdmin()) return;
-    localStorage.setItem('tb_impression_v1', $('m-variante').value);
+    localStorage.setItem('tb_impression_v2', $('m-variante').value);
     toast('Variante ' + $('m-variante').value + ' enregistrée', 'ok');
   };
   $('m-code').onclick = () => { fermer('v-menu'); enAdmin(() => ouvrirCode('creer')); };
