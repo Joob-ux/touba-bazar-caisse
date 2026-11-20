@@ -297,6 +297,26 @@ app.get('/api/clotures', auth, wrap(async (req, res) => {
   res.json({ clotures: rows.map(r => ({ ...r, total: +r.total, especes: +r.especes, wave: +r.wave, orange: +r.orange })) });
 }));
 
+/* Remise à zéro des ventes de test.
+   - par la caisse elle-même (après « Effacer toutes les ventes » en mode administrateur sur le TPE) :
+     seulement ses propres ventes et clôtures, la numérotation de la caisse repartant à 1 ;
+   - par le gérant depuis la page de suivi (Compte) : toutes les ventes et clôtures. */
+app.post('/api/reinitialiser', envoi, wrap(async (req, res) => {
+  const appareil = req.caisse || txt(req.body.appareil, 80);
+  if (!appareil) return res.status(400).json({ erreur: 'Appareil manquant.' });
+  const [v] = await pool.query('DELETE FROM ventes WHERE appareil = ?', [appareil]);
+  const [c] = await pool.query('DELETE FROM clotures WHERE appareil = ?', [appareil]);
+  console.log(`Remise à zéro de la caisse ${appareil} : ${v.affectedRows} ventes, ${c.affectedRows} clôtures effacées`);
+  changement(); res.json({ ok: true, ventes: v.affectedRows, clotures: c.affectedRows });
+}));
+app.post('/api/tout-effacer', auth, gerant, wrap(async (req, res) => {
+  if (req.body.confirmation !== 'EFFACER') return res.status(400).json({ erreur: 'Tapez EFFACER pour confirmer.' });
+  const [v] = await pool.query('DELETE FROM ventes');
+  const [c] = await pool.query('DELETE FROM clotures');
+  console.log(`Remise à zéro par ${req.user.email} : ${v.affectedRows} ventes, ${c.affectedRows} clôtures effacées`);
+  changement(); res.json({ ok: true, ventes: v.affectedRows, clotures: c.affectedRows });
+}));
+
 /* Une caisse demande l'autorisation d'envoyer ses ventes (aucun mot de passe sur la caisse).
    Réponse : statut « attente », « autorisee » ou « refusee ». */
 app.post('/api/caisses/demande', wrap(async (req, res) => {

@@ -5,7 +5,7 @@
    Chaque vente part quelques secondes après l'encaissement ; sans internet elle attend et part dès que
    la connexion revient. Une annulation faite plus tard est envoyée aussi. Les ventes restent sur le TPE. */
 (function () {
-  const K_VENTES = 'tb_ventes_v1', K_CLOT = 'tb_clotures_v1', K_ZOK = 'tb_suivi_clotures_v1', K_OK = 'tb_suivi_envoyes_v1', K_APP = 'tb_appareil_v1', K_CLE = 'tb_caisse_cle_v1', K_STATUT = 'tb_caisse_statut_v1';
+  const K_VENTES = 'tb_ventes_v1', K_CLOT = 'tb_clotures_v1', K_ZOK = 'tb_suivi_clotures_v1', K_OK = 'tb_suivi_envoyes_v1', K_PURGE = 'tb_suivi_purge_v1', K_APP = 'tb_appareil_v1', K_CLE = 'tb_caisse_cle_v1', K_STATUT = 'tb_caisse_statut_v1';
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
   const SUIVI_URL = get('tb_suivi_url') || window.SUIVI_URL;   // tb_suivi_url : seulement pour les essais
@@ -58,6 +58,10 @@
         set(K_STATUT, d.statut);
       }
       if (statut() === 'autorisee') {
+        if (get(K_PURGE)) {   // remise à zéro faite sur le TPE : effacer aussi ses ventes du suivi, avant tout envoi
+          await call('/api/reinitialiser', { appareil });
+          set(K_PURGE, null);
+        }
         const list = attente();
         for (let i = 0; i < list.length; i += 100) {
           const part = list.slice(i, i + 100);
@@ -82,7 +86,7 @@
      Après une erreur (pas d'internet…), nouvel essai au bout d'une minute. */
   function tick() {
     if (lastErr && Date.now() - lastTry < 60000) return;
-    if (statut() !== 'autorisee' || attente().length || zAttente().length) push();
+    if (statut() !== 'autorisee' || get(K_PURGE) || attente().length || zAttente().length) push();
   }
 
   /* Phrase d'état pour le menu de la caisse */
@@ -95,7 +99,13 @@
     return 'Suivi à distance actif : chaque vente est envoyée automatiquement' + (lastOk ? ' (dernier envoi à ' + lastOk.toTimeString().slice(0, 5) + ').' : '.');
   }
 
-  window.TB_SUIVI = { push: () => setTimeout(push, 800), etat };
+  /* Remise à zéro (ventes de test) : appelée par la caisse après effacement local */
+  function reinitialiser() {
+    set(K_OK, null); set(K_ZOK, null);
+    if (statut() === 'autorisee' || statut() === 'attente') set(K_PURGE, '1');
+    setTimeout(push, 500);
+  }
+  window.TB_SUIVI = { push: () => setTimeout(push, 800), etat, reinitialiser };
   window.addEventListener('online', () => { lastErr = ''; push(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) push(); });
   setInterval(tick, 10000);

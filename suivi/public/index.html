@@ -162,6 +162,13 @@ tr.annulee td { color:var(--gris); } tr.annulee .m { text-decoration:line-throug
       <div class="form-l"><input id="n-email" type="email" placeholder="Email"><input id="n-mdp" type="text" placeholder="Mot de passe (8 caractères, lettres et chiffre)"><button class="btn" id="n-ok">Ajouter</button></div>
       <p class="msg" id="n-msg" hidden></p>
     </div>
+    <div class="carte" id="c-effacer-w">
+      <h2>Effacer les ventes de test</h2>
+      <p class="info">Supprime toutes les ventes et clôtures reçues ici. À utiliser seulement après des essais : c'est définitif.
+        Pour repartir de zéro sur le TPE aussi, utilisez « Effacer toutes les ventes » dans son menu administrateur.</p>
+      <div class="form-l"><input id="e-conf" type="text" placeholder="Tapez EFFACER"><button class="btn" id="e-ok" style="background:var(--rouge)">Tout effacer</button></div>
+      <p class="msg" id="e-msg" hidden></p>
+    </div>
     <div class="carte">
       <h2>Mon mot de passe</h2>
       <p class="info" id="c-moi"></p>
@@ -354,7 +361,7 @@ $('btn-retour').onclick = () => { $('v-compte').hidden = true; $('v-app').hidden
 async function chargerCompte() {
   $('c-moi').textContent = `Connecté : ${moi.email}` + (moi.role === 'gerant' ? ' (gérant)' : ' (lecture seule)');
   const g = moi.role === 'gerant';
-  $('c-caisses-w').hidden = $('c-comptes-w').hidden = !g;
+  $('c-caisses-w').hidden = $('c-comptes-w').hidden = $('c-effacer-w').hidden = !g;
   if (!g) return;
   try {
     const [c, u] = await Promise.all([api('/api/caisses'), api('/api/comptes')]);
@@ -380,6 +387,12 @@ $('c-comptes').onclick = async e => {
 $('n-ok').onclick = async () => {
   try { await api('/api/comptes', { body: { email: $('n-email').value.trim(), mdp: $('n-mdp').value } }); $('n-email').value = $('n-mdp').value = ''; say($('n-msg'), 'Compte ajouté.', true); chargerCompte(); }
   catch (err) { say($('n-msg'), err.message); }
+};
+$('e-ok').onclick = async () => {
+  if ($('e-conf').value.trim() !== 'EFFACER') return say($('e-msg'), 'Tapez EFFACER en majuscules pour confirmer.');
+  if (!confirm('Effacer définitivement toutes les ventes et clôtures du suivi ?')) return;
+  try { const d = await api('/api/tout-effacer', { body: { confirmation: 'EFFACER' } }); $('e-conf').value = ''; say($('e-msg'), `${d.ventes} ventes et ${d.clotures} clôtures effacées.`, true); }
+  catch (err) { say($('e-msg'), err.message); }
 };
 $('m-ok').onclick = async () => {
   try { await api('/api/mdp', { body: { ancien: $('m-ancien').value, nouveau: $('m-nouveau').value } }); $('m-ancien').value = $('m-nouveau').value = ''; say($('m-msg'), 'Mot de passe changé.', true); }

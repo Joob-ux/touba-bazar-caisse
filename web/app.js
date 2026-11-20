@@ -261,6 +261,21 @@
     localStorage.setItem('tb_impression_v2', $('m-variante').value);
     toast('Variante ' + $('m-variante').value + ' enregistrée', 'ok');
   };
+  $('m-effacer').onclick = () => {
+    fermer('v-menu');
+    enAdmin(() => {
+      const nb = ventes.length;
+      if (!nb && !clotures.length) return toast('Aucune vente à effacer', 'ok');
+      const t = prompt(`Effacer définitivement les ${nb} vente(s) et ${clotures.length} clôture(s) de ce TPE (et du suivi à distance) ?\nLa numérotation repartira à 000001.\n\nTapez EFFACER pour confirmer :`);
+      if (t === null) return;
+      if (t.trim().toUpperCase() !== 'EFFACER') return toast('Rien n\'a été effacé (il fallait taper EFFACER)', 'err');
+      ventes = []; clotures = [];
+      save(K.ventes, ventes); save(K.clotures, clotures); localStorage.removeItem(K.seq);
+      if (window.TB_SUIVI && window.TB_SUIVI.reinitialiser) window.TB_SUIVI.reinitialiser();
+      saisie = ''; majMontant(); majCA(); ['v-histo', 'v-jour'].forEach(fermer);
+      toast(`${nb} vente(s) effacée(s). La caisse repart à zéro.`, 'ok');
+    });
+  };
   $('m-code').onclick = () => { fermer('v-menu'); enAdmin(() => ouvrirCode('creer')); };
   $('m-ca-caissier').onchange = () => { if (!estAdmin()) return majAdminUI(); admin.caCaissier = $('m-ca-caissier').checked; save(K.admin, admin); majAdminUI(); };
 
