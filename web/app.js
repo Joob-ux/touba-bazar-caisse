@@ -27,11 +27,13 @@
   let prefs = load(K.prefs, { print: 'auto' });
   let saisie = '';
 
-  const jourDe = d => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // Heure de Dakar = UTC toute l'année : les dates ne dépendent pas du fuseau réglé sur le TPE (souvent la Chine)
+  const TZ = 'UTC';
+  const jourDe = d => { d = new Date(d); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
   const today = () => jourDe(new Date());
   const numTxt = n => String(n).padStart(6, '0');
   const badge = m => `<span class="mp mp-${['cash', 'wave', 'orange'].includes(m) ? m : 'autre'}">${esc(MODES[m] || m)}</span>`;
-  const heure = t => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const heure = t => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 
   let toastT;
   function toast(msg, type) {
@@ -54,7 +56,7 @@
 
   function majEntete() {
     $('h-shop').textContent = boutique.company_name || 'Caisse';
-    $('h-user').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    $('h-user').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
   }
   function majCA() {
     const c = totaux(ventesDu(today()));
@@ -188,12 +190,14 @@
 
   // ---------- Historique ----------
   const iso = d => jourDe(d);
-  const dateLongue = s => new Date(s + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  const dateLongue = s => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: TZ });
+  const dateCourte = s => new Date(s + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: TZ });
   let histo = null, jourOuvert = null;
   function periode(p) {
     const n = new Date(); let du, au = iso(n);
-    if (p === 'mois') du = iso(new Date(n.getFullYear(), n.getMonth(), 1));
-    else if (p === 'moisp') { du = iso(new Date(n.getFullYear(), n.getMonth() - 1, 1)); au = iso(new Date(n.getFullYear(), n.getMonth(), 0)); }
+    const a = n.getUTCFullYear(), m = n.getUTCMonth();
+    if (p === 'mois') du = iso(Date.UTC(a, m, 1));
+    else if (p === 'moisp') { du = iso(Date.UTC(a, m - 1, 1)); au = iso(Date.UTC(a, m, 0)); }
     else du = iso(new Date(n.getTime() - (Number(p) - 1) * 864e5));
     return { du, au };
   }
@@ -206,7 +210,7 @@
     histo = Object.assign({ du, au, jours }, totaux(liste));
     const max = Math.max(1, ...jours.map(j => j.total));
     const nbJ = jours.filter(j => j.nb).length;
-    $('h-resultat').innerHTML = `<div class="h-total"><div class="d">Du ${new Date(du + 'T12:00').toLocaleDateString('fr-FR')} au ${new Date(au + 'T12:00').toLocaleDateString('fr-FR')}</div>
+    $('h-resultat').innerHTML = `<div class="h-total"><div class="d">Du ${dateCourte(du)} au ${dateCourte(au)}</div>
         <div class="t num">${fmt(histo.total)} F</div>
         <div class="d num">${histo.nb} ventes · ${modesTxt(histo)}${nbJ ? ` · moyenne ${fmt(histo.total / nbJ)} F/jour de vente` : ''}</div></div>` +
       (jours.length ? jours.map(j => `<button class="jour" data-j="${j.date}"><div class="info"><b>${dateLongue(j.date)}</b>
@@ -294,7 +298,7 @@
     fermer('v-menu');
     if (!ventes.length) return toast('Aucune vente à exporter', 'err');
     const lignes = [['N°', 'Date', 'Heure', 'Montant (F CFA)', 'Mode de paiement', 'Libellé', 'Statut']];
-    for (const v of ventes) lignes.push([numTxt(v.n), new Date(v.t).toLocaleDateString('fr-FR'), heure(v.t), v.m, MODES[v.p] || v.p, v.l || '', v.a ? 'Annulée' : 'Validée']);
+    for (const v of ventes) lignes.push([numTxt(v.n), dateCourte(jourDe(v.t)), heure(v.t), v.m, MODES[v.p] || v.p, v.l || '', v.a ? 'Annulée' : 'Validée']);
     const csv = '﻿' + lignes.map(l => l.map(c => /[;"\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(';')).join('\r\n');
     const nom = `ventes-${(boutique.company_name || 'caisse').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${today()}.csv`;
     if (window.Android && typeof window.Android.partager === 'function') { window.Android.partager(nom, csv); return; }

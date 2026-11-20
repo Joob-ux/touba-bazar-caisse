@@ -114,7 +114,8 @@
     catch (e) { return draw(shop, title, body, footer, false); }
   }
 
-  const dateTxt = d => { const x = new Date(d); return x.toLocaleDateString('fr-FR') + ' ' + x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+  // Heure de Dakar (= UTC), quel que soit le fuseau réglé sur le TPE
+  const dateTxt = d => { const x = new Date(d); return x.toLocaleDateString('fr-FR', { timeZone: 'UTC' }) + ' ' + x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }); };
 
   /* v = vente du journal : { num, saleId, date, items:[{name,qty,price}], sous, taxe, total, mode, recu, rendu, caissier } */
   function venteCanvas(shop, v, duplicata) {
@@ -145,7 +146,7 @@
   function clotureCanvas(shop, c) {
     return canvas(shop, c.titre || 'CLÔTURE DE CAISSE', t => {
       t.gap(4);
-      t.pair('Journée', new Date(c.date + 'T12:00:00').toLocaleDateString('fr-FR'));
+      t.pair('Journée', new Date(c.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC' }));
       t.pair('Imprimé le', dateTxt(new Date()));
       if (c.caissier) t.pair('Caissier', c.caissier);
       const bloc = (titre, b) => {
