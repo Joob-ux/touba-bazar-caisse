@@ -124,9 +124,15 @@ tr.annulee td { color:var(--gris); } tr.annulee .m { text-decoration:line-throug
     </div>
 
     <div class="colonnes">
+      <div>
       <div class="carte">
         <h2>Jour par jour</h2>
         <table><thead><tr><th>Jour</th><th class="r">Ventes</th><th class="r">Total</th></tr></thead><tbody id="jours"></tbody></table>
+      </div>
+      <div class="carte">
+        <h2>Clôtures de caisse</h2>
+        <table><thead><tr><th>Clôture</th><th class="r">Ventes</th><th class="r">Total</th></tr></thead><tbody id="clotures"></tbody></table>
+      </div>
       </div>
       <div class="carte">
         <h2 id="v-titre">Ventes</h2>
@@ -273,9 +279,13 @@ async function load() {
   const my = ++seq, p = periode();
   $('msg').hidden = true;
   try {
-    const [r, l] = await Promise.all([api(`/api/resume?du=${p.du}&au=${p.au}`), api(`/api/ventes?du=${p.du}&au=${p.au}`)]);
+    const [r, l, z] = await Promise.all([api(`/api/resume?du=${p.du}&au=${p.au}`), api(`/api/ventes?du=${p.du}&au=${p.au}`), api(`/api/clotures?du=${p.du}&au=${p.au}`)]);
     if (my !== seq) return;
     resume = r; ventes = l.ventes;
+    $('clotures').innerHTML = z.clotures.length ? z.clotures.map(c => `<tr title="Tickets ${String(c.de_num).padStart(6, '0')} à ${String(c.a_num).padStart(6, '0')}">
+        <td><b>N° ${c.z}</b> · ${frDate(c.date)}<div class="info" style="font-size:12px">${c.ouverture ? 'depuis ' + frDate(c.ouverture) + ' · ' : ''}Espèces ${fmt(c.especes)} · Wave ${fmt(c.wave)} · OM ${fmt(c.orange)}</div></td>
+        <td class="r num">${c.nb}</td><td class="r num"><b>${fmt(c.total)} F</b></td></tr>`).join('')
+      : '<tr><td colspan="3" class="vide">Aucune clôture sur cette période</td></tr>';
     const tot = { nb: 0, total: 0, parMode: {} };
     r.jours.forEach(j => { tot.nb += j.nb; tot.total += j.total; for (const [m, x] of Object.entries(j.parMode)) { tot.parMode[m] = tot.parMode[m] || { nb: 0, total: 0 }; tot.parMode[m].nb += x.nb; tot.parMode[m].total += x.total; } });
     $('s-total').textContent = fmt(tot.total) + ' F CFA';

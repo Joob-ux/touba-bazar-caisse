@@ -5,7 +5,7 @@
    Chaque vente part quelques secondes après l'encaissement ; sans internet elle attend et part dès que
    la connexion revient. Une annulation faite plus tard est envoyée aussi. Les ventes restent sur le TPE. */
 (function () {
-  const K_VENTES = 'tb_ventes_v1', K_OK = 'tb_suivi_envoyes_v1', K_APP = 'tb_appareil_v1', K_CLE = 'tb_caisse_cle_v1', K_STATUT = 'tb_caisse_statut_v1';
+  const K_VENTES = 'tb_ventes_v1', K_CLOT = 'tb_clotures_v1', K_ZOK = 'tb_suivi_clotures_v1', K_OK = 'tb_suivi_envoyes_v1', K_APP = 'tb_appareil_v1', K_CLE = 'tb_caisse_cle_v1', K_STATUT = 'tb_caisse_statut_v1';
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
   const SUIVI_URL = get('tb_suivi_url') || window.SUIVI_URL;   // tb_suivi_url : seulement pour les essais
@@ -24,6 +24,9 @@
   const envoyes = () => { try { return JSON.parse(get(K_OK)) || {}; } catch (e) { return {}; } };
   const attente = () => { const ok = envoyes(); return ventes().filter(v => v && v.n && (!(v.n in ok) || (v.a && ok[v.n] !== 1))); };
 
+  const clotures = () => { try { const v = JSON.parse(get(K_CLOT)); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+  const zEnvoyees = () => { try { return new Set(JSON.parse(get(K_ZOK)) || []); } catch (e) { return new Set(); } };
+  const zAttente = () => { const ok = zEnvoyees(); return clotures().filter(c => c && c.z && !ok.has(c.z)); };
   let busy = false, lastErr = '', lastOk = null, lastTry = 0;
 
   async function call(path, body) {
@@ -63,7 +66,12 @@
           part.forEach(v => { if (recues.has(v.n)) ok[v.n] = v.a ? 1 : 0; });
           set(K_OK, JSON.stringify(ok));
         }
-        if (list.length) lastOk = new Date();
+        const zs = zAttente();
+        if (zs.length) {
+          const d = await call('/api/clotures', { appareil, clotures: zs });
+          const ok = zEnvoyees(); (d.ok || []).forEach(z => ok.add(z)); set(K_ZOK, JSON.stringify([...ok]));
+        }
+        if (list.length || zs.length) lastOk = new Date();
       }
       lastErr = '';
     } catch (e) { lastErr = e.message; }
@@ -74,7 +82,7 @@
      Après une erreur (pas d'internet…), nouvel essai au bout d'une minute. */
   function tick() {
     if (lastErr && Date.now() - lastTry < 60000) return;
-    if (statut() !== 'autorisee' || attente().length) push();
+    if (statut() !== 'autorisee' || attente().length || zAttente().length) push();
   }
 
   /* Phrase d'état pour le menu de la caisse */

@@ -45,6 +45,12 @@ async function initDb() {
     date_vente DATETIME NOT NULL, montant BIGINT NOT NULL DEFAULT 0, mode VARCHAR(12) NOT NULL,
     libelle VARCHAR(200), annulee_le DATETIME NULL, recu_le DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY appareil_num (appareil, num), INDEX (date_vente))`);
+  /* Clôtures de caisse (remise à 0) envoyées par la caisse : jamais modifiées une fois reçues */
+  await pool.query(`CREATE TABLE IF NOT EXISTS clotures (
+    id INT AUTO_INCREMENT PRIMARY KEY, appareil VARCHAR(80) NOT NULL, z INT NOT NULL,
+    date_cloture DATETIME NOT NULL, ouverture DATETIME NULL, de_num INT, a_num INT, nb INT NOT NULL DEFAULT 0,
+    total BIGINT NOT NULL DEFAULT 0, especes BIGINT NOT NULL DEFAULT 0, wave BIGINT NOT NULL DEFAULT 0, orange BIGINT NOT NULL DEFAULT 0,
+    recu_le DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY appareil_z (appareil, z), INDEX (date_cloture))`);
   /* Caisses autorisées à envoyer sans mot de passe : la caisse crée sa propre clé secrète,
      seule son empreinte est gardée ici ; le gérant autorise la caisse une fois. */
   await pool.query(`CREATE TABLE IF NOT EXISTS caisses (
@@ -247,6 +253,7 @@ function dateSql(s) {
   return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6] || '00'}` : null;
 }
 const MODES = ['cash', 'wave', 'orange'];
+const jour = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
 /* Ventes de la caisse : { n, t (ISO), m, p (cash|wave|orange), l, a (date d'annulation ou absent) }.
    Une vente déjà reçue n'est jamais effacée ; seule l'annulation peut s'ajouter. */
 app.post('/api/ventes', envoi, wrap(async (req, res) => {
@@ -264,6 +271,30 @@ app.post('/api/ventes', envoi, wrap(async (req, res) => {
   }
   if (ok.length) changement();
   res.json({ ok });
+}));
+
+/* Clôtures : { z, t, du, deN, aN, nb, total, parMode } */
+app.post('/api/clotures', envoi, wrap(async (req, res) => {
+  const appareil = txt(req.body.appareil, 80), list = Array.isArray(req.body.clotures) ? req.body.clotures.slice(0, 200) : [];
+  if (!appareil) return res.status(400).json({ erreur: 'Appareil manquant.' });
+  const ok = [], n = x => Math.max(0, Math.floor(Number(x) || 0)), pm = (c, m) => n(((c.parMode || {})[m] || {}).total);
+  for (const c of list) {
+    const z = n(c.z), d = dateSql(c.t);
+    if (!z || !d) continue;
+    await pool.query(`INSERT IGNORE INTO clotures (appareil, z, date_cloture, ouverture, de_num, a_num, nb, total, especes, wave, orange)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [appareil, z, d, dateSql(c.du), n(c.deN), n(c.aN), n(c.nb), n(c.total), pm(c, 'cash'), pm(c, 'wave'), pm(c, 'orange')]);
+    ok.push(z);
+  }
+  if (ok.length) changement();
+  res.json({ ok });
+}));
+
+app.get('/api/clotures', auth, wrap(async (req, res) => {
+  const du = jour(req.query.du), au = jour(req.query.au) || du;
+  if (!du) return res.status(400).json({ erreur: 'Date manquante.' });
+  const [rows] = await pool.query(`SELECT appareil, z, DATE_FORMAT(date_cloture, '%Y-%m-%dT%H:%i:%sZ') AS date, DATE_FORMAT(ouverture, '%Y-%m-%dT%H:%i:%sZ') AS ouverture,
+      de_num, a_num, nb, total, especes, wave, orange FROM clotures WHERE date_cloture BETWEEN ? AND ? ORDER BY date_cloture DESC LIMIT 500`, [du + ' 00:00:00', au + ' 23:59:59']);
+  res.json({ clotures: rows.map(r => ({ ...r, total: +r.total, especes: +r.especes, wave: +r.wave, orange: +r.orange })) });
 }));
 
 /* Une caisse demande l'autorisation d'envoyer ses ventes (aucun mot de passe sur la caisse).
@@ -311,7 +342,6 @@ app.get('/api/version', auth, wrap(async (req, res) => {
   res.json({ v: version, attente });
 }));
 
-const jour = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
 app.get('/api/ventes', auth, wrap(async (req, res) => {
   const du = jour(req.query.du), au = jour(req.query.au) || du;
   if (!du) return res.status(400).json({ erreur: 'Date manquante.' });
