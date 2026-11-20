@@ -102,6 +102,17 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 .mp { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:10px; color:#fff; vertical-align:middle; }
 .mp-cash { background:var(--vert2); } .mp-wave { background:#1aa3d9; } .mp-orange { background:var(--orange); } .mp-autre { background:var(--gris); }
 .chips button .n { opacity:.75; font-weight:400; }
+/* Administrateur */
+.pastille-admin { background:#ffc107; color:#222; font-size:12px; font-weight:700; padding:6px 10px; border-radius:20px; }
+.code-aide { text-align:center; color:var(--gris); font-size:14px; margin:4px 0 10px; min-height:20px; }
+.code-aide.err { color:var(--rouge); font-weight:600; }
+.code-points { text-align:center; font-size:30px; letter-spacing:10px; min-height:44px; font-weight:800; }
+.pave-code { padding:10px 0 4px; grid-auto-rows:58px; }
+.pave-code .ok { background:var(--vert); color:#fff; border-color:var(--vert); font-size:20px; }
+.lien-oubli { background:none; color:var(--gris); width:100%; padding:10px; font-size:14px; text-decoration:underline; }
+.menu .interrupteur { display:flex; gap:10px; align-items:center; color:#111; font-size:15px; }
+.menu .interrupteur input { width:22px; height:22px; }
+.ca.cache .ca-total, .ca.cache .ca-modes { filter:blur(9px); }
 /* Formulaire boutique */
 .form label { display:block; font-size:13px; color:var(--gris); margin:0 0 12px; }
 .form input { display:block; width:100%; margin-top:4px; padding:11px; border:1px solid var(--ligne); border-radius:10px; font-size:16px; color:#111; }
@@ -139,6 +150,7 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 <section id="app" hidden>
   <header>
     <div class="titre"><div class="shop" id="h-shop">Caisse</div><div class="sous" id="h-user"></div></div>
+    <button class="pastille-admin" id="h-admin" hidden>Admin 🔓</button>
         <button id="btn-menu" aria-label="Menu">☰</button>
   </header>
   <div class="ca" id="ca">
@@ -179,12 +191,15 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 <div class="voile" id="v-menu" hidden><div class="panneau">
   <div class="tete"><h2>Menu</h2><button data-close="v-menu">✕</button></div>
   <div class="corps menu" style="padding:0">
+    <button id="m-admin">Mode administrateur 🔒<small id="m-admin-info">Historique, annulations, export, réglages</small></button>
     <button id="m-histo">Historique<small>Chiffre d'affaires jour par jour, détail des ventes</small></button>
     <button id="m-cloture">Clôture de caisse<small>Totaux du jour par mode de paiement, ticket récapitulatif</small></button>
     <button id="m-export">Exporter les ventes<small>Fichier Excel (CSV) à envoyer par WhatsApp ou e-mail</small></button>
     <button id="m-boutique">Infos de la boutique<small>Nom, adresse, téléphones, logo du ticket</small></button>
     <button id="m-test">Imprimer un ticket test</button>
-    <label>Impression
+    <button id="m-code" data-admin>Changer le code administrateur</button>
+    <label data-admin class="interrupteur"><input type="checkbox" id="m-ca-caissier"> Le caissier voit le chiffre d'affaires du jour et la clôture</label>
+    <label data-admin>Impression
       <select id="m-print">
         <option value="auto">Automatique</option>
         <option value="rawbt">RawBT</option>
@@ -212,6 +227,22 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 <div class="voile" id="v-jour" hidden><div class="panneau">
   <div class="tete"><button data-close="v-jour" aria-label="Retour">‹</button><h2 id="j-titre">Jour</h2><button id="j-print" aria-label="Imprimer" style="width:auto;padding:0 10px;font-size:14px">Imprimer</button></div>
   <div class="corps"><div class="chips" id="j-filtres"></div><div id="j-liste"></div></div>
+</div></div>
+
+<!-- Code administrateur -->
+<div class="voile" id="v-code" hidden><div class="panneau">
+  <div class="tete"><h2 id="code-titre">Code administrateur</h2><button data-close="v-code">✕</button></div>
+  <div class="corps">
+    <p id="code-aide" class="code-aide"></p>
+    <div class="code-points" id="code-points"></div>
+    <div class="pave pave-code" id="code-pave">
+      <button>1</button><button>2</button><button>3</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button>
+      <button data-k="del">⌫</button><button>0</button><button data-k="ok" class="ok">OK</button>
+    </div>
+    <button class="lien-oubli" id="code-oubli">Code oublié ?</button>
+  </div>
 </div></div>
 
 <!-- Infos boutique -->

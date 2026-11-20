@@ -11,7 +11,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ---------- Stockage ----------
-  const K = { ventes: 'tb_ventes_v1', boutique: 'tb_boutique_v1', prefs: 'tb_prefs_v1', seq: 'tb_seq_v1' };
+  const K = { ventes: 'tb_ventes_v1', boutique: 'tb_boutique_v1', prefs: 'tb_prefs_v1', seq: 'tb_seq_v1', admin: 'tb_admin_v1' };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   function save(k, v) {
     try { localStorage.setItem(k, JSON.stringify(v)); return true; }
@@ -145,13 +145,112 @@
   document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => fermer(b.dataset.close));
   document.querySelectorAll('.voile').forEach(v => v.addEventListener('click', e => { if (e.target === v) v.hidden = true; }));
 
+
+  // ---------- Compte administrateur (code secret, gardé sur le TPE) ----------
+  // Caissier : encaisser et imprimer. Administrateur : historique, annulations, export, réglages.
+  // Le code n'est jamais stocké en clair (PBKDF2 + sel). Code de secours Xelkoom Valley : 16 chiffres.
+  const SECOURS = { sel: '6047298008e9bf3e114e5128cddd2907', hash: 'c2d5328ed2d64d75e085d539982d48d29c55fc8de85815f3041cbca66e34017a' };
+  const DUREE_ADMIN = 5 * 60000;         // verrouillage automatique après 5 min sans action
+  let admin = load(K.admin, null);       // { sel, hash, caCaissier }
+  let adminJusqua = 0, essais = 0, bloqueJusqua = 0;
+  const estAdmin = () => Date.now() < adminJusqua;
+  const caVisible = () => estAdmin() || !admin || admin.caCaissier !== false;
+
+  const hex = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+  async function hacher(code, selHex) {
+    const sel = new Uint8Array(selHex.match(/../g).map(h => parseInt(h, 16)));
+    const cle = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveBits']);
+    return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: sel, iterations: 150000, hash: 'SHA-256' }, cle, 256));
+  }
+  const nouveauSel = () => { const b = new Uint8Array(16); crypto.getRandomValues(b); return hex(b); };
+
+  function majAdminUI() {
+    const a = estAdmin();
+    $('h-admin').hidden = !a;
+    document.querySelectorAll('#v-menu [data-admin]').forEach(e => { e.hidden = !a; });
+    ['m-histo', 'm-export', 'm-boutique'].forEach(id => { $(id).hidden = !a; });
+    $('m-cloture').hidden = !caVisible();
+    $('m-admin').firstChild.textContent = a ? 'Verrouiller (mode caissier) 🔓' : 'Mode administrateur 🔒';
+    $('m-admin-info').textContent = a ? 'Revenir au mode caissier' : (admin ? 'Historique, annulations, export, réglages' : 'Créer le code administrateur');
+    if (admin) $('m-ca-caissier').checked = admin.caCaissier !== false;
+    $('ca').classList.toggle('cache', !caVisible());
+    if (!a) ['v-histo', 'v-jour', 'v-boutique'].forEach(fermer);
+  }
+  function prolonger() { if (estAdmin()) adminJusqua = Date.now() + DUREE_ADMIN; }
+  document.addEventListener('pointerdown', prolonger, true);
+  setInterval(() => { if (adminJusqua && !estAdmin()) { adminJusqua = 0; majAdminUI(); toast('Mode administrateur verrouillé', ''); } }, 15000);
+  function verrouiller() { adminJusqua = 0; majAdminUI(); }
+
+  // Pavé du code : mode 'entrer', 'creer' (nouveau puis confirmation)
+  let codeMode = 'entrer', codeSaisi = '', codePremier = '', apresCode = null;
+  function ouvrirCode(mode, ensuite) {
+    codeMode = mode; codeSaisi = ''; codePremier = ''; apresCode = ensuite || null;
+    $('code-titre').textContent = mode === 'entrer' ? 'Code administrateur' : 'Nouveau code administrateur';
+    aideCode(mode === 'entrer' ? 'Entrez le code administrateur' : 'Choisissez un code de 4 à 8 chiffres');
+    $('code-oubli').hidden = mode !== 'entrer';
+    $('v-code').querySelector('[data-close]').hidden = !admin && mode === 'creer';   // premier lancement : obligatoire
+    majPoints(); ouvrir('v-code');
+  }
+  function aideCode(t, err) { const a = $('code-aide'); a.textContent = t; a.className = 'code-aide' + (err ? ' err' : ''); }
+  function majPoints() { $('code-points').textContent = '•'.repeat(codeSaisi.length) || ' '; }
+  $('code-pave').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.k === 'del') codeSaisi = codeSaisi.slice(0, -1);
+    else if (b.dataset.k === 'ok') return validerCode();
+    else if (codeSaisi.length < 16) codeSaisi += b.textContent;
+    majPoints();
+  };
+  $('code-oubli').onclick = () => aideCode('Contactez Xelkoom Valley (77 030 75 08) : entrez le code de secours à 16 chiffres puis OK.');
+  async function validerCode() {
+    const c = codeSaisi; codeSaisi = ''; majPoints();
+    if (codeMode === 'entrer') {
+      if (Date.now() < bloqueJusqua) return aideCode('Trop d\'essais : patientez 30 secondes', true);
+      if (c.length === 16 && await hacher(c, SECOURS.sel) === SECOURS.hash) {
+        essais = 0; adminJusqua = Date.now() + DUREE_ADMIN; majAdminUI();
+        return ouvrirCode('creer', apresCode);   // code de secours : on choisit un nouveau code
+      }
+      if (admin && c.length >= 4 && await hacher(c, admin.sel) === admin.hash) {
+        essais = 0; adminJusqua = Date.now() + DUREE_ADMIN; fermer('v-code'); majAdminUI();
+        toast('Mode administrateur', 'ok');
+        const f = apresCode; apresCode = null; if (f) f();
+        return;
+      }
+      if (++essais >= 5) { bloqueJusqua = Date.now() + 30000; essais = 0; }
+      return aideCode('Code incorrect', true);
+    }
+    // création / changement
+    if (!codePremier) {
+      if (!/^\d{4,8}$/.test(c)) return aideCode('Le code doit avoir 4 à 8 chiffres', true);
+      codePremier = c; return aideCode('Retapez le code pour confirmer');
+    }
+    if (c !== codePremier) { codePremier = ''; return aideCode('Les deux codes sont différents, recommencez', true); }
+    const sel = nouveauSel();
+    admin = { sel, hash: await hacher(c, sel), caCaissier: admin ? admin.caCaissier !== false : true };
+    if (!save(K.admin, admin)) return;
+    adminJusqua = Date.now() + DUREE_ADMIN; fermer('v-code'); majAdminUI();
+    toast('Code administrateur enregistré', 'ok');
+    const f = apresCode; apresCode = null; if (f) f();
+  }
+  /* Exécute f si administrateur, sinon demande le code d'abord */
+  function enAdmin(f) {
+    if (estAdmin()) return f();
+    if (!admin) return ouvrirCode('creer', f);
+    ouvrirCode('entrer', f);
+  }
+  $('m-admin').onclick = () => { fermer('v-menu'); if (estAdmin()) { verrouiller(); toast('Mode caissier', 'ok'); } else enAdmin(() => {}); };
+  $('h-admin').onclick = () => { verrouiller(); toast('Mode caissier', 'ok'); };
+  $('m-code').onclick = () => { fermer('v-menu'); enAdmin(() => ouvrirCode('creer')); };
+  $('m-ca-caissier').onchange = () => { if (!estAdmin()) return majAdminUI(); admin.caCaissier = $('m-ca-caissier').checked; save(K.admin, admin); majAdminUI(); };
+
   $('btn-menu').onclick = () => {
+    majAdminUI();
     $('m-print').value = prefs.print;
     const taille = (localStorage.getItem(K.ventes) || '').length;
     $('m-info').textContent = `${ventes.length} ventes enregistrées sur ce TPE · mémoire utilisée ${Math.round(taille / 1024)} Ko sur ~5 000 Ko`;
     ouvrir('v-menu');
   };
-  $('m-print').onchange = () => { prefs.print = $('m-print').value; save(K.prefs, prefs); toast('Mode d\'impression enregistré', 'ok'); };
+  $('m-print').onchange = () => {
+    if (!estAdmin()) { $('m-print').value = prefs.print; return; } prefs.print = $('m-print').value; save(K.prefs, prefs); toast('Mode d\'impression enregistré', 'ok'); };
   $('m-test').onclick = async () => { fermer('v-menu'); try { await imprimer(await testCanvas(boutique), modeImpr()); } catch (e) { toast('Impression impossible : ' + e.message, 'err'); } };
 
   // ---------- Infos boutique ----------
@@ -167,7 +266,7 @@
     $('b-logo-apercu').innerHTML = logoTmp ? `<img src="${logoTmp}" alt="Logo"><button type="button" class="btn-second" id="b-logo-suppr" style="width:auto;padding:8px 12px">Retirer le logo</button>` : '';
     const s = $('b-logo-suppr'); if (s) s.onclick = () => { logoTmp = ''; apercuLogo(); };
   }
-  $('m-boutique').onclick = () => { fermer('v-menu'); ouvrirBoutique(); };
+  $('m-boutique').onclick = () => { fermer('v-menu'); enAdmin(ouvrirBoutique); };
   $('b-logo').onchange = () => {
     const f = $('b-logo').files[0]; if (!f) return;
     const img = new Image(), url = URL.createObjectURL(f);
@@ -181,6 +280,7 @@
     img.src = url;
   };
   $('b-ok').onclick = () => {
+    if (!estAdmin()) return enAdmin(() => $('b-ok').click());
     const nom = $('b-nom').value.trim();
     if (!nom) return toast('Le nom de la boutique est obligatoire', 'err');
     boutique = { company_name: nom, company_activity: $('b-act').value.trim(), company_address: $('b-adr').value.trim(),
@@ -223,8 +323,8 @@
     document.querySelectorAll('#h-periodes button').forEach(b => b.classList.toggle('on', b.dataset.p === '30'));
     const p = periode('30'); chargerHisto(p.du, p.au);
   }
-  $('m-histo').onclick = () => { fermer('v-menu'); ouvrirHisto(); };
-  $('ca').onclick = () => ouvrirHisto();
+  $('m-histo').onclick = () => { fermer('v-menu'); enAdmin(ouvrirHisto); };
+  $('ca').onclick = () => enAdmin(ouvrirHisto);
   $('h-periodes').onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     document.querySelectorAll('#h-periodes button').forEach(x => x.classList.toggle('on', x === b));
@@ -254,7 +354,7 @@
     const vis = l.filter(v => !filtre || v.p === filtre);
     $('j-liste').innerHTML = vis.length ? vis.map(v => `<div class="vente"><div class="info"><b class="num ${v.a ? 'annulee' : ''}">${fmt(v.m)} F</b> ${badge(v.p)}${v.a ? ' <span class="etat err">Annulée</span>' : ''}
         <small>${heure(v.t)} · N° ${numTxt(v.n)}${v.l ? ' · ' + esc(v.l) : ''}</small></div>
-        ${v.a ? '' : `<button data-n="${v.n}" data-a="print">Ticket</button><button data-n="${v.n}" data-a="annul" style="color:var(--rouge)">Annuler</button>`}</div>`).join('')
+        ${v.a ? '' : `<button data-n="${v.n}" data-a="print">Ticket</button>${estAdmin() ? `<button data-n="${v.n}" data-a="annul" style="color:var(--rouge)">Annuler</button>` : ''}`}</div>`).join('')
       : '<div class="vide">Aucune vente</div>';
   }
   $('j-filtres').onclick = e => { const b = e.target.closest('button'); if (b && jourOuvert) { jourOuvert.filtre = b.dataset.f; rendreJour(); } };
@@ -262,6 +362,7 @@
     const b = e.target.closest('button[data-n]'); if (!b) return;
     const v = ventes.find(x => x.n == b.dataset.n); if (!v) return;
     if (b.dataset.a === 'print') return imprimerVente(v, true);
+    if (b.dataset.a === 'annul' && !estAdmin()) return enAdmin(rendreJour);
     if (b.dataset.a === 'annul' && confirm(`Annuler la vente N° ${numTxt(v.n)} de ${fmt(v.m)} F (${MODES[v.p]}) ? Elle ne comptera plus dans le chiffre d'affaires.`)) {
       v.a = new Date().toISOString(); save(K.ventes, ventes);
       rendreJour(); majCA(); if (histo) chargerHisto(histo.du, histo.au);
@@ -279,6 +380,7 @@
   let derniereCloture = null;
   $('m-cloture').onclick = () => {
     fermer('v-menu');
+    if (!caVisible()) return enAdmin(() => $('m-cloture').click());
     const date = today(), b = totaux(ventesDu(date));
     derniereCloture = { date, boutique: b, appareil: null, attente: 0 };
     $('cloture-corps').innerHTML = `<h3 style="font-size:15px;margin:12px 0 4px">${dateLongue(date)}</h3><table class="bilan">
@@ -296,6 +398,7 @@
   // ---------- Export CSV (sauvegarde / envoi au patron) ----------
   $('m-export').onclick = () => {
     fermer('v-menu');
+    if (!estAdmin()) return enAdmin(() => $('m-export').click());
     if (!ventes.length) return toast('Aucune vente à exporter', 'err');
     const lignes = [['N°', 'Date', 'Heure', 'Montant (F CFA)', 'Mode de paiement', 'Libellé', 'Statut']];
     for (const v of ventes) lignes.push([numTxt(v.n), dateCourte(jourDe(v.t)), heure(v.t), v.m, MODES[v.p] || v.p, v.l || '', v.a ? 'Annulée' : 'Validée']);
@@ -309,7 +412,9 @@
   $('app').hidden = false;
   majEntete(); majMontant(); majCA();
   setInterval(() => { majEntete(); majCA(); }, 60000);   // passage à minuit
-  if (!localStorage.getItem(K.boutique)) setTimeout(ouvrirBoutique, 300);   // premier lancement : infos du ticket
+  majAdminUI();
+  // Premier lancement : créer le code administrateur, puis les infos du ticket
+  if (!admin) setTimeout(() => ouvrirCode('creer', () => { if (!localStorage.getItem(K.boutique)) ouvrirBoutique(); }), 300);
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 

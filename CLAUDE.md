@@ -29,4 +29,9 @@ Les demandes arrivent souvent depuis un téléphone : faire la modification comp
 3. `web/sw.js` : **augmenter `CACHE` à chaque modification**, sinon le TPE garde l'ancienne version.
 4. Tester avant de pousser : `python3 -m http.server` dans `web/` + Playwright, en simulant le TPE
    (`window.Android = { printRaw(){}, partager(){} }`), sans erreur JavaScript.
-5. Montants en F CFA, séparateur de milliers par espace. Messages de commit en français.
+5. **Compte administrateur** (code 4 à 8 chiffres, PBKDF2 + sel dans `tb_admin_v1`) : historique,
+   annulations, export, infos boutique, impression, changement de code ; option « le caissier voit
+   le CA du jour et la clôture ». Verrouillage auto après 5 min. Code de secours Xelkoom Valley
+   (16 chiffres, connu de Matar seulement, empreinte `SECOURS` dans `web/app.js`) : ne jamais
+   l'écrire dans le dépôt. Toute nouvelle action sensible passe par `enAdmin(...)`.
+6. Montants en F CFA, séparateur de milliers par espace. Messages de commit en français.
