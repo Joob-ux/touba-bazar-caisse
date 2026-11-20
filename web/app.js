@@ -11,7 +11,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ---------- Stockage ----------
-  const K = { ventes: 'tb_ventes_v1', boutique: 'tb_boutique_v1', prefs: 'tb_prefs_v1', seq: 'tb_seq_v1', admin: 'tb_admin_v1' };
+  const K = { ventes: 'tb_ventes_v1', boutique: 'tb_boutique_v1', prefs: 'tb_prefs_v1', seq: 'tb_seq_v1', admin: 'tb_admin_v1', clotures: 'tb_clotures_v1' };
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
   function save(k, v) {
     try { localStorage.setItem(k, JSON.stringify(v)); return true; }
@@ -25,6 +25,10 @@
     ticket_footer: 'Merci de votre visite !', logo_url: ''
   });
   let prefs = load(K.prefs, { print: 'auto' });
+  /* Clôtures (remise à 0 de la caisse) : { z, t, du, deN, aN, nb, total, parMode, annulees }.
+     La caisse en cours = ventes dont le numéro est après le dernier ticket de la dernière clôture.
+     Les ventes ne sont jamais effacées : elles restent dans l'historique. */
+  let clotures = load(K.clotures, []);
   let saisie = '';
 
   // Heure de Dakar = UTC toute l'année : les dates ne dépendent pas du fuseau réglé sur le TPE (souvent la Chine)
@@ -58,9 +62,13 @@
     $('h-shop').textContent = boutique.company_name || 'Caisse';
     $('h-user').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ });
   }
+  const derniereCloture = () => clotures.length ? clotures[clotures.length - 1] : null;
+  const ventesEnCours = () => { const z = derniereCloture(), dN = z ? z.aN : 0; return ventes.filter(v => v.n > dN); };
+  const quand = t => `${dateCourte(jourDe(t))} à ${heure(t)}`;
   function majCA() {
-    const c = totaux(ventesDu(today()));
+    const c = totaux(ventesEnCours()), z = derniereCloture();
     $('ca-total').textContent = fmt(c.total) + ' F';
+    $('ca-lib').textContent = z ? `Caisse en cours · depuis la clôture N° ${z.z} (${jourDe(z.t) === today() ? 'à ' + heure(z.t) : quand(z.t)})` : 'Caisse en cours';
     $('ca-modes').textContent = `${c.nb} vente${c.nb > 1 ? 's' : ''} · ${modesTxt(c)}`;
   }
 
@@ -328,7 +336,15 @@
       (jours.length ? jours.map(j => `<button class="jour" data-j="${j.date}"><div class="info"><b>${dateLongue(j.date)}</b>
           <small class="num">${j.nb} vente${j.nb > 1 ? 's' : ''} · ${modesTxt(j)}${j.annulees ? ` · ${j.annulees} annulée${j.annulees > 1 ? 's' : ''}` : ''}</small><div class="barre-j" style="width:${Math.max(3, j.total / max * 100)}%"></div></div>
           <span class="m num">${fmt(j.total)} F</span><span class="fl">›</span></button>`).join('')
-        : '<div class="vide">Aucune vente sur cette période</div>');
+        : '<div class="vide">Aucune vente sur cette période</div>')
+      + listeClotures(du, au);
+  }
+  function listeClotures(du, au) {
+    const l = clotures.filter(z => { const j = jourDe(z.t); return j >= du && j <= au; }).slice().reverse();
+    if (!l.length) return '';
+    return `<h3 class="h-sous">Clôtures de caisse</h3>` + l.map(z => `<div class="z"><div class="info"><b>Clôture N° ${z.z}</b> · <span class="num">${fmt(z.total)} F</span>
+        <small>${quand(z.du)} → ${quand(z.t)} · ${z.nb} vente${z.nb > 1 ? 's' : ''} · ${modesTxt(z)}</small></div>
+        <button data-z="${z.z}">Réimprimer</button></div>`).join('');
   }
   function ouvrirHisto() {
     ouvrir('v-histo');
@@ -348,7 +364,11 @@
     document.querySelectorAll('#h-periodes button').forEach(x => x.classList.remove('on'));
     chargerHisto(du, au);
   };
-  $('h-resultat').onclick = e => { const b = e.target.closest('[data-j]'); if (b) ouvrirJour(b.dataset.j); };
+  $('h-resultat').onclick = e => {
+    const z = e.target.closest('[data-z]');
+    if (z) { const c = clotures.find(x => x.z == z.dataset.z); if (c) imprimerCloture(c, true); return; }
+    const b = e.target.closest('[data-j]'); if (b) ouvrirJour(b.dataset.j);
+  };
 
   function ouvrirJour(date) {
     $('j-titre').textContent = dateLongue(date);
@@ -389,24 +409,43 @@
     catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
   };
 
-  // ---------- Clôture ----------
-  let derniereCloture = null;
+  // ---------- Clôture (remise à 0) ----------
+  function tableTotaux(b) {
+    return `<table class="bilan">
+      ${['cash', 'wave', 'orange'].map(m => { const x = b.parMode[m] || { nb: 0, total: 0 }; return `<tr><td>${MODES[m]} (${x.nb})</td><td class="num">${fmt(x.total)} F</td></tr>`; }).join('')}
+      <tr class="tot"><td>Total (${b.nb} vente${b.nb > 1 ? 's' : ''})</td><td class="num">${fmt(b.total)} F</td></tr></table>
+      ${b.annulees ? `<p style="color:var(--gris);font-size:14px">${b.annulees} vente(s) annulée(s), non comptée(s).</p>` : ''}`;
+  }
   $('m-cloture').onclick = () => {
     fermer('v-menu');
     if (!caVisible()) return enAdmin(() => $('m-cloture').click());
-    const date = today(), b = totaux(ventesDu(date));
-    derniereCloture = { date, boutique: b, appareil: null, attente: 0 };
-    $('cloture-corps').innerHTML = `<h3 style="font-size:15px;margin:12px 0 4px">${dateLongue(date)}</h3><table class="bilan">
-      ${['cash', 'wave', 'orange'].map(m => { const x = b.parMode[m] || { nb: 0, total: 0 }; return `<tr><td>${MODES[m]} (${x.nb})</td><td class="num">${fmt(x.total)} F</td></tr>`; }).join('')}
-      <tr class="tot"><td>Total (${b.nb} ventes)</td><td class="num">${fmt(b.total)} F</td></tr></table>
-      ${b.annulees ? `<p style="color:var(--gris);font-size:14px">${b.annulees} vente(s) annulée(s), non comptée(s).</p>` : ''}`;
+    const l = ventesEnCours(), b = totaux(l), z = derniereCloture();
+    $('cloture-corps').innerHTML = `<p style="color:var(--gris);font-size:14px;margin:4px 0 8px">Ventes depuis ${z ? `la clôture N° ${z.z} du ${quand(z.t)}` : 'l\'ouverture de la caisse'}${l.length ? ` · tickets ${numTxt(l[0].n)} à ${numTxt(l[l.length - 1].n)}` : ''}</p>
+      ${tableTotaux(b)}
+      <p style="font-size:13px;color:var(--gris)">« Clôturer » imprime le ticket de clôture et remet la caisse à 0. Les ventes restent dans l'historique.</p>`;
+    $('c-cloturer').disabled = !l.length;
+    $('c-cloturer').textContent = l.length ? 'Clôturer et remettre à 0' : 'Aucune vente depuis la dernière clôture';
+    $('c-reimp').hidden = !z;
     ouvrir('v-cloture');
   };
-  $('c-print').onclick = async () => {
-    if (!derniereCloture) return;
-    try { await imprimer(await clotureCanvas(boutique, derniereCloture), modeImpr()); }
-    catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
+  $('c-cloturer').onclick = async () => {
+    const l = ventesEnCours(); if (!l.length) return;
+    const b = totaux(l);
+    if (!confirm(`Clôturer la caisse ?\n\nTotal : ${fmt(b.total)} F (${b.nb} vente${b.nb > 1 ? 's' : ''}).\nLe ticket de clôture sera imprimé et la caisse repartira à 0.`)) return;
+    const z = { z: (derniereCloture() ? derniereCloture().z : 0) + 1, t: new Date().toISOString(), du: l[0].t,
+      deN: l[0].n, aN: l[l.length - 1].n, nb: b.nb, total: b.total, parMode: b.parMode, annulees: b.annulees };
+    clotures.push(z);
+    if (!save(K.clotures, clotures)) { clotures.pop(); return; }
+    fermer('v-cloture'); majCA();
+    toast(`Clôture N° ${z.z} : ${fmt(z.total)} F. Caisse remise à 0.`, 'ok');
+    if (window.TB_SUIVI && window.TB_SUIVI.push) window.TB_SUIVI.push();
+    imprimerCloture(z, false);
   };
+  async function imprimerCloture(z, duplicata) {
+    try { await imprimer(await clotureCanvas(boutique, Object.assign({ boutique: z, appareil: null, attente: 0, duplicata }, z)), modeImpr()); }
+    catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
+  }
+  $('c-reimp').onclick = () => { const z = derniereCloture(); if (z) imprimerCloture(z, true); };
 
   // ---------- Export CSV (sauvegarde / envoi au patron) ----------
   $('m-export').onclick = () => {

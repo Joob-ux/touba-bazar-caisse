@@ -118,6 +118,11 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 .form input { display:block; width:100%; margin-top:4px; padding:11px; border:1px solid var(--ligne); border-radius:10px; font-size:16px; color:#111; }
 #b-logo-apercu img { max-width:160px; max-height:90px; display:block; margin:4px 0 8px; }
 .vente .annulee { text-decoration:line-through; color:var(--gris); }
+/* Clôtures */
+.h-sous { font-size:15px; margin:16px 0 4px; }
+.z { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--ligne); }
+.z .info { flex:1; min-width:0; font-size:14px; } .z .info small { display:block; color:var(--gris); font-size:12px; }
+.z button { background:var(--fond); padding:8px 10px; font-size:13px; }
 /* Historique */
 #v-histo .panneau, #v-jour .panneau { height:92%; }
 .chips { display:flex; gap:6px; overflow-x:auto; margin-bottom:8px; }
@@ -154,7 +159,7 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
         <button id="btn-menu" aria-label="Menu">☰</button>
   </header>
   <div class="ca" id="ca">
-    <div class="ca-lib">Chiffre d'affaires du jour</div>
+    <div class="ca-lib" id="ca-lib">Caisse en cours</div>
     <div class="ca-total num" id="ca-total">0 F</div>
     <div class="ca-modes num" id="ca-modes"></div>
   </div>
@@ -193,7 +198,7 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
   <div class="corps menu" style="padding:0">
     <button id="m-admin">Mode administrateur 🔒<small id="m-admin-info">Historique, annulations, export, réglages</small></button>
     <button id="m-histo">Historique<small>Chiffre d'affaires jour par jour, détail des ventes</small></button>
-    <button id="m-cloture">Clôture de caisse<small>Totaux du jour par mode de paiement, ticket récapitulatif</small></button>
+    <button id="m-cloture">Clôture de caisse<small>Ticket récapitulatif et remise à 0 de la caisse (les ventes restent dans l'historique)</small></button>
     <button id="m-export">Exporter les ventes<small>Fichier Excel (CSV) à envoyer par WhatsApp ou e-mail</small></button>
     <button id="m-boutique">Infos de la boutique<small>Nom, adresse, téléphones, logo du ticket</small></button>
     <button id="m-test">Imprimer un ticket test</button>
@@ -269,7 +274,8 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 <div class="voile" id="v-cloture" hidden><div class="panneau">
   <div class="tete"><h2>Clôture de caisse</h2><button data-close="v-cloture">✕</button></div>
   <div class="corps" id="cloture-corps"></div>
-  <div class="pied"><button class="btn-plein" id="c-print">Imprimer la clôture</button></div>
+  <div class="pied"><button class="btn-plein" id="c-cloturer">Clôturer et remettre à 0</button>
+    <button class="btn-second" id="c-reimp" hidden>Réimprimer la dernière clôture</button></div>
 </div></div>
 
 <div id="toast" hidden></div>

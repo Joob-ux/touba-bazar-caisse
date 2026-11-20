@@ -33,6 +33,8 @@ Les demandes arrivent souvent depuis un téléphone : faire la modification comp
    ne jamais changer la clé ni le format sans migration, sinon l'historique est perdu.
    Infos du ticket : `tb_boutique_v1`.
 2. Numérotation continue, jamais réutilisée ; une vente annulée reste visible (barrée).
+   **Clôture** = remise à 0 de la caisse (`tb_clotures_v1` : { z, t, du, deN, aN, nb, total, parMode }) :
+   la caisse en cours = ventes de numéro > `aN` de la dernière clôture. Aucune vente n'est effacée.
 3. `web/sw.js` : **augmenter `CACHE` à chaque modification**, sinon le TPE garde l'ancienne version.
 4. Tester avant de pousser : `python3 -m http.server` dans `web/` + Playwright, en simulant le TPE
    (`window.Android = { printRaw(){}, partager(){} }`), sans erreur JavaScript.

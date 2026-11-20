@@ -146,8 +146,16 @@
   function clotureCanvas(shop, c) {
     return canvas(shop, c.titre || 'CLÔTURE DE CAISSE', t => {
       t.gap(4);
-      t.pair('Journée', new Date(c.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC' }));
-      t.pair('Imprimé le', dateTxt(new Date()));
+      if (c.z) {   // clôture de caisse (remise à 0)
+        t.pair('Clôture N°', String(c.z));
+        if (c.du) t.pair('Ouverture', dateTxt(c.du));
+        t.pair('Clôture', dateTxt(c.t));
+        if (c.deN) t.pair('Tickets', `${String(c.deN).padStart(6, '0')} à ${String(c.aN).padStart(6, '0')}`);
+        if (c.duplicata) t.pair('Réimprimé le', dateTxt(new Date()));
+      } else {
+        t.pair('Journée', new Date(c.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC' }));
+        t.pair('Imprimé le', dateTxt(new Date()));
+      }
       if (c.caissier) t.pair('Caissier', c.caissier);
       const bloc = (titre, b) => {
         t.hr(); t.center(titre, 20, 700, SANS); t.gap(4);
@@ -159,12 +167,14 @@
         t.gap(4); t.pair(`TOTAL (${b.nb} ventes)`, fmt(b.total) + ' F', 24, 800);
         if (b.annulees) t.pair('Ventes annulées', String(b.annulees));
       };
-      if (c.boutique) bloc(c.appareil ? 'Toute la boutique (GestPro)' : 'Récapitulatif de la journée', c.boutique);
+      if (c.boutique) bloc(c.z ? 'Ventes de la période' : c.appareil ? 'Toute la boutique (GestPro)' : 'Récapitulatif de la journée', c.boutique);
       if (c.appareil) bloc('Ce TPE', c.appareil);
       if (c.attente) { t.hr(); t.left(`Attention : ${c.attente} vente(s) pas encore envoyée(s) à GestPro.`, 18, 700); }
       t.hr();
-      t.gap(10); t.left('Espèces comptées : ..................', 20);
-      t.gap(16); t.left('Signature : ..........................', 20);
+      if (c.z !== undefined || c.titre === undefined) {
+        t.gap(10); t.left('Espèces comptées : ..................', 20);
+        t.gap(16); t.left('Signature : ..........................', 20);
+      }
     }, []);
   }
 
