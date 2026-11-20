@@ -29,6 +29,7 @@ input, select { font:inherit; }
 #app { display:flex; flex-direction:column; height:100%; }
 header { background:var(--vert); color:#fff; padding:8px 10px; display:flex; align-items:center; gap:8px; }
 header .titre { flex:1; min-width:0; }
+header .h-logo { width:38px; height:38px; border-radius:50%; background:#fff; flex:none; }
 header .shop { font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pastille { font-size:12px; padding:4px 8px; border-radius:20px; background:rgba(255,255,255,.18); white-space:nowrap; }
@@ -154,6 +155,7 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
 
 <section id="app" hidden>
   <header>
+    <img src="icons/logo.png" alt="" class="h-logo">
     <div class="titre"><div class="shop" id="h-shop">Caisse</div><div class="sous" id="h-user"></div></div>
     <button class="pastille-admin" id="h-admin" hidden>Admin 🔓</button>
         <button id="btn-menu" aria-label="Menu">☰</button>

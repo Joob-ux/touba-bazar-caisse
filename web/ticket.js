@@ -85,7 +85,7 @@
     t.gap = v => { t.y += v; };
 
     if (logo) {
-      const maxH = 110, r = Math.min(CW / logo.width, maxH / logo.height, 1.5);
+      const maxH = 176, r = Math.min(CW / logo.width, maxH / logo.height, 1);
       const w = Math.round(logo.width * r), h = Math.round(logo.height * r);
       const lc = document.createElement('canvas'); lc.width = w; lc.height = h;
       const l = lc.getContext('2d'); l.fillStyle = '#fff'; l.fillRect(0, 0, w, h); l.drawImage(logo, 0, 0, w, h);

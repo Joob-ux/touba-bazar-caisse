@@ -25,6 +25,9 @@
     ticket_footer: 'Merci de votre visite !', logo_url: ''
   });
   let prefs = load(K.prefs, { print: 'auto' });
+  /* Logo du ticket : celui choisi dans « Infos de la boutique », sinon le logo Touba Famarock Bazar
+     préparé pour l'imprimante thermique (web/logo-ticket.png). « Sans logo » : logo_url = 'aucun'. */
+  const boutiqueTicket = () => Object.assign({}, boutique, { logo_url: boutique.logo_url === 'aucun' ? '' : (boutique.logo_url || 'logo-ticket.png') });
   /* Clôtures (remise à 0 de la caisse) : { z, t, du, deN, aN, nb, total, parMode, annulees }.
      La caisse en cours = ventes dont le numéro est après le dernier ticket de la dernière clôture.
      Les ventes ne sont jamais effacées : elles restent dans l'historique. */
@@ -143,7 +146,7 @@
 
   const venteTicket = v => ({ num: numTxt(v.n), date: v.t, items: [], note: v.l, total: v.m, mode: v.p, recu: v.r || 0, rendu: v.r ? v.r - v.m : 0 });
   async function imprimerVente(v, duplicata) {
-    try { await imprimer(await venteCanvas(boutique, venteTicket(v), duplicata), prefs.print); }
+    try { await imprimer(await venteCanvas(boutiqueTicket(), venteTicket(v), duplicata), prefs.print); }
     catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
   }
   const modeImpr = () => prefs.print === 'aucun' ? 'auto' : prefs.print;
@@ -271,7 +274,7 @@
   };
   $('m-print').onchange = () => {
     if (!estAdmin()) { $('m-print').value = prefs.print; return; } prefs.print = $('m-print').value; save(K.prefs, prefs); toast('Mode d\'impression enregistré', 'ok'); };
-  $('m-test').onclick = async () => { fermer('v-menu'); try { await imprimer(await testCanvas(boutique), modeImpr()); } catch (e) { toast('Impression impossible : ' + e.message, 'err'); } };
+  $('m-test').onclick = async () => { fermer('v-menu'); try { await imprimer(await testCanvas(boutiqueTicket()), modeImpr()); } catch (e) { toast('Impression impossible : ' + e.message, 'err'); } };
 
   // ---------- Infos boutique ----------
   let logoTmp = null;
@@ -283,8 +286,9 @@
     apercuLogo(); ouvrir('v-boutique');
   }
   function apercuLogo() {
-    $('b-logo-apercu').innerHTML = logoTmp ? `<img src="${logoTmp}" alt="Logo"><button type="button" class="btn-second" id="b-logo-suppr" style="width:auto;padding:8px 12px">Retirer le logo</button>` : '';
-    const s = $('b-logo-suppr'); if (s) s.onclick = () => { logoTmp = ''; apercuLogo(); };
+    const vu = logoTmp === 'aucun' ? '' : (logoTmp || 'logo-ticket.png');
+    $('b-logo-apercu').innerHTML = !vu ? '<p style="color:var(--gris);font-size:13px">Aucun logo sur le ticket.</p>' : `<img src="${vu}" alt="Logo"><button type="button" class="btn-second" id="b-logo-suppr" style="width:auto;padding:8px 12px">Retirer le logo</button>`;
+    const s = $('b-logo-suppr'); if (s) s.onclick = () => { logoTmp = 'aucun'; apercuLogo(); };
   }
   $('m-boutique').onclick = () => { fermer('v-menu'); enAdmin(ouvrirBoutique); };
   $('b-logo').onchange = () => {
@@ -405,7 +409,7 @@
   $('j-print').onclick = async () => {
     if (!jourOuvert) return;
     const r = Object.assign({ date: jourOuvert.date }, totaux(ventesDu(jourOuvert.date)));
-    try { await imprimer(await clotureCanvas(boutique, { date: r.date, boutique: r, appareil: null, attente: 0, titre: "CHIFFRE D'AFFAIRES" }), modeImpr()); }
+    try { await imprimer(await clotureCanvas(boutiqueTicket(), { date: r.date, boutique: r, appareil: null, attente: 0, titre: "CHIFFRE D'AFFAIRES" }), modeImpr()); }
     catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
   };
 
@@ -442,7 +446,7 @@
     imprimerCloture(z, false);
   };
   async function imprimerCloture(z, duplicata) {
-    try { await imprimer(await clotureCanvas(boutique, Object.assign({ boutique: z, appareil: null, attente: 0, duplicata }, z)), modeImpr()); }
+    try { await imprimer(await clotureCanvas(boutiqueTicket(), Object.assign({ boutique: z, appareil: null, attente: 0, duplicata }, z)), modeImpr()); }
     catch (e) { toast('Impression impossible : ' + e.message, 'err'); }
   }
   $('c-reimp').onclick = () => { const z = derniereCloture(); if (z) imprimerCloture(z, true); };
