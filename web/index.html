@@ -197,6 +197,10 @@ header .sous { font-size:12px; opacity:.85; white-space:nowrap; overflow:hidden;
     <button id="m-export">Exporter les ventes<small>Fichier Excel (CSV) à envoyer par WhatsApp ou e-mail</small></button>
     <button id="m-boutique">Infos de la boutique<small>Nom, adresse, téléphones, logo du ticket</small></button>
     <button id="m-test">Imprimer un ticket test</button>
+    <button id="m-reglage" data-admin>Réglage de l'imprimante<small id="m-reglage-info">Ticket de réglage, puis choix de la variante droite</small></button>
+    <label data-admin id="m-variante-w">Variante d'impression
+      <select id="m-variante"><option value="0">Variante 0</option><option value="1">Variante 1</option><option value="2">Variante 2</option><option value="3">Variante 3</option></select>
+    </label>
     <button id="m-code" data-admin>Changer le code administrateur</button>
     <label data-admin class="interrupteur"><input type="checkbox" id="m-ca-caissier"> Le caissier voit le chiffre d'affaires du jour et la clôture</label>
     <label data-admin>Impression

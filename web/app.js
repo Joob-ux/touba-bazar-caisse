@@ -6,7 +6,7 @@
    cette clé ni le format sans migration, sinon l'historique du client est perdu. */
 (function () {
   'use strict';
-  const { venteCanvas, clotureCanvas, testCanvas, imprimer, fmt, MODES } = window.TPE_TICKET;
+  const { venteCanvas, clotureCanvas, testCanvas, imprimer, imprimerReglage, variante, fmt, MODES } = window.TPE_TICKET;
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -174,6 +174,7 @@
     $('m-admin').firstChild.textContent = a ? 'Verrouiller (mode caissier) 🔓' : 'Mode administrateur 🔒';
     $('m-admin-info').textContent = a ? 'Revenir au mode caissier' : (admin ? 'Historique, annulations, export, réglages' : 'Créer le code administrateur');
     if (admin) $('m-ca-caissier').checked = admin.caCaissier !== false;
+    $('m-variante').value = String(variante());
     $('ca').classList.toggle('cache', !caVisible());
     if (!a) ['v-histo', 'v-jour', 'v-boutique'].forEach(fermer);
   }
@@ -240,6 +241,15 @@
   }
   $('m-admin').onclick = () => { fermer('v-menu'); if (estAdmin()) { verrouiller(); toast('Mode caissier', 'ok'); } else enAdmin(() => {}); };
   $('h-admin').onclick = () => { verrouiller(); toast('Mode caissier', 'ok'); };
+  $('m-reglage').onclick = () => {
+    fermer('v-menu');
+    enAdmin(() => { if (!imprimerReglage()) toast('Le réglage se fait sur le TPE (appli Caisse)', 'err'); else toast('Ticket de réglage imprimé : choisissez la variante droite dans le menu', 'ok'); });
+  };
+  $('m-variante').onchange = () => {
+    if (!estAdmin()) return;
+    localStorage.setItem('tb_impression_v1', $('m-variante').value);
+    toast('Variante ' + $('m-variante').value + ' enregistrée', 'ok');
+  };
   $('m-code').onclick = () => { fermer('v-menu'); enAdmin(() => ouvrirCode('creer')); };
   $('m-ca-caissier').onchange = () => { if (!estAdmin()) return majAdminUI(); admin.caCaissier = $('m-ca-caissier').checked; save(K.admin, admin); majAdminUI(); };
 

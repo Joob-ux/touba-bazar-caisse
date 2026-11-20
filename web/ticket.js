@@ -177,22 +177,69 @@
   }
 
   /* Canvas → ESC/POS raster (GS v 0) par bandes de 128 lignes, en base64. */
-  function escpos(cv) {
+  /* Canvas → commandes ESC/POS en base64. Plusieurs façons d'envoyer l'image, car le service
+     d'impression des TPE Q3Pro décale les lignes avec la commande standard (GS v 0) :
+     0 standard · 1 zone d'impression fixée à 58 mm (GS W) · 2 mode image ESC * · 3 lignes pré-décalées.
+     Le réglage choisi (ticket de réglage) est gardé dans localStorage « tb_impression_v1 ». */
+  const VARIANTE_DEFAUT = 1;
+  const variante = () => { const v = Number(localStorage.getItem('tb_impression_v1')); return [0, 1, 2, 3].includes(v) && localStorage.getItem('tb_impression_v1') !== null ? v : VARIANTE_DEFAUT; };
+  function lignes(cv) {
     const w = cv.width, h = cv.height, bpr = w >> 3;
     const d = cv.getContext('2d').getImageData(0, 0, w, h).data;
-    const bytes = [0x1B, 0x40, 0x1B, 0x61, 0x00];
-    for (let y0 = 0; y0 < h; y0 += 128) {
-      const bh = Math.min(128, h - y0);
-      bytes.push(0x1D, 0x76, 0x30, 0x00, bpr & 255, bpr >> 8, bh & 255, bh >> 8);
-      for (let y = y0; y < y0 + bh; y++) for (let xb = 0; xb < bpr; xb++) {
-        let b = 0;
-        for (let k = 0; k < 8; k++) { const i = (y * w + xb * 8 + k) * 4; if (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 < 150) b |= 0x80 >> k; }
-        bytes.push(b);
+    const noir = (x, y) => { const i = (y * w + x) * 4; return d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 < 150; };
+    return { w, h, bpr, noir };
+  }
+  function octets(cv, v) {
+    const { w, h, bpr, noir } = lignes(cv);
+    const bytes = [0x1B, 0x40];
+    if (v === 1) bytes.push(0x1D, 0x4C, 0x00, 0x00, 0x1D, 0x57, w & 255, w >> 8);   // marge gauche 0, largeur 384 points
+    bytes.push(0x1B, 0x61, 0x00);
+    if (v === 2) {
+      bytes.push(0x1B, 0x33, 24);                                   // interligne = 24 points
+      for (let y0 = 0; y0 < h; y0 += 24) {
+        bytes.push(0x1B, 0x2A, 33, w & 255, w >> 8);
+        for (let x = 0; x < w; x++) for (let k = 0; k < 3; k++) {
+          let b = 0;
+          for (let j = 0; j < 8; j++) { const y = y0 + k * 8 + j; if (y < h && noir(x, y)) b |= 0x80 >> j; }
+          bytes.push(b);
+        }
+        bytes.push(0x0A);
+      }
+      bytes.push(0x1B, 0x32);
+    } else {
+      const decal = v === 3 ? 12 : 0;                               // 96 points = décalage observé sur le Q3Pro
+      for (let y0 = 0; y0 < h; y0 += 128) {
+        const bh = Math.min(128, h - y0);
+        bytes.push(0x1D, 0x76, 0x30, 0x00, bpr & 255, bpr >> 8, bh & 255, bh >> 8);
+        for (let y = y0; y < y0 + bh; y++) for (let i = 0; i < bpr; i++) {
+          const xb = (i + decal) % bpr; let b = 0;
+          for (let k = 0; k < 8; k++) if (noir(xb * 8 + k, y)) b |= 0x80 >> k;
+          bytes.push(b);
+        }
       }
     }
     bytes.push(0x1B, 0x64, 0x04);
-    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.slice(i, i + 0x8000));
-    return btoa(bin);
+    return bytes;
+  }
+  const b64 = bytes => { let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.slice(i, i + 0x8000)); return btoa(bin); };
+  function escpos(cv, v) { return b64(octets(cv, v == null ? variante() : v)); }
+
+  /* Ticket de réglage : les 4 variantes l'une sous l'autre, chacune avec une règle 0→9.
+     La bonne variante est celle où la règle est droite et entière (0 à gauche, 9 à droite). */
+  function regleCanvas(n) {
+    const c = document.createElement('canvas'); c.width = W; c.height = 112;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, 112); x.fillStyle = '#000';
+    x.font = `800 30px ${SANS}`; x.textAlign = 'left'; x.fillText('VARIANTE ' + n, 4, 32);
+    x.fillRect(0, 44, W, 3); x.fillRect(0, 44, 3, 60); x.fillRect(W - 3, 44, 3, 60);
+    x.font = `700 28px ${FONT}`; x.textAlign = 'center';
+    for (let i = 0; i < 10; i++) x.fillText(String(i), 19 + i * 38.4, 86);
+    x.fillRect(0, 104, W, 3);
+    return c;
+  }
+  function reglage() {
+    const tout = [];
+    for (const v of [0, 1, 2, 3]) { const o = octets(regleCanvas(v), v); tout.push(...o); }
+    return b64(tout);
   }
 
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -215,5 +262,9 @@
     return 'navigateur';
   }
 
-  window.TPE_TICKET = { venteCanvas, clotureCanvas, testCanvas, imprimer, escpos, fmt, MODES };
+  function imprimerReglage() {
+    if (!hasBridge()) return false;
+    window.Android.printRaw('base64,' + reglage()); return true;
+  }
+  window.TPE_TICKET = { venteCanvas, clotureCanvas, testCanvas, imprimer, escpos, imprimerReglage, variante, fmt, MODES };
 })();
