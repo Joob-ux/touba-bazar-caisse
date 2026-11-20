@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private static final int CHOIX_FICHIER = 7;
     private WebView webView;
     private ValueCallback<Uri[]> fichierCb;
+    private PrinterBridge printer;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -48,7 +49,8 @@ public class MainActivity extends Activity {
         s.setTextZoom(100);
         s.setUserAgentString(s.getUserAgentString() + " GestProTPE/" + BuildConfig.VERSION_NAME);
 
-        webView.addJavascriptInterface(new PrinterBridge(this), "Android");
+        printer = new PrinterBridge(this);
+        webView.addJavascriptInterface(printer, "Android");
         webView.setWebViewClient(new Client());
         webView.setWebChromeClient(new WebChromeClient() {
             // Choix du logo de la boutique (champ fichier de la page)
@@ -147,5 +149,9 @@ public class MainActivity extends Activity {
     protected void onPause() { if (webView != null) webView.onPause(); super.onPause(); }
 
     @Override
-    protected void onDestroy() { if (webView != null) webView.destroy(); super.onDestroy(); }
+    protected void onDestroy() {
+        if (printer != null) printer.deconnecter();
+        if (webView != null) webView.destroy();
+        super.onDestroy();
+    }
 }

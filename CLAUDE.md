@@ -10,7 +10,9 @@ Les demandes arrivent souvent depuis un téléphone : faire la modification comp
   le ticket 58 mm s'imprime. Chiffre d'affaires du jour en haut, historique jour par jour
   (filtre par mode, réimpression, annulation), clôture, export CSV.
 - **TPE Q3Pro** : l'appli Android (`android/`) ouvre la page Vercel en plein écran et donne
-  `window.Android.printRaw` (ticket image ESC/POS → RawBT, sinon Bluetooth « InnerPrinter »)
+  `window.Android.printRaw` (ticket image ESC/POS → imprimante intégrée du Q3Pro via le service
+  `IPosPrinterService` (AIDL dans `android/app/src/main/aidl`, ordre des méthodes relevé sur le TPE),
+  sinon RawBT, sinon Bluetooth « InnerPrinter »)
   et `window.Android.partager` (export CSV).
 
 ## En production
